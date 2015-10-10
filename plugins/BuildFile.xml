@@ -1,4 +1,7 @@
 <use name="FWCore/Framework"/>
 <use name="FWCore/PluginManager"/>
 <use name="FWCore/ParameterSet"/>
+<flags CXXFLAGS="-I/afs/cern.ch/user/d/dasu/UCT2016Layer1CTP7Client -I/afs/cern.ch/user/d/dasu/UCT2016Layer1CTP7Client/rpcsvc_client_dev"/>
+<flags LDFLAGS="-L/afs/cern.ch/user/d/dasu/UCT2016Layer1CTP7Client -lUCT2016Layer1CTP7 -L/afs/cern.ch/user/d/dasu/UCT2016Layer1CTP7Client/rpcsvc_client_dev -lwiscrpcsvc"/>
+<flags EDM_LDFLAGS="-L/afs/cern.ch/user/d/dasu/UCT2016Layer1CTP7Client -lUCT2016Layer1CTP7 -L/afs/cern.ch/user/d/dasu/UCT2016Layer1CTP7Client/rpcsvc_client_dev -lwiscrpcsvc"/>
 <flags EDM_PLUGIN="1"/>

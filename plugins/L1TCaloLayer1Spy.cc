@@ -19,6 +19,13 @@
 
 // system include files
 #include <memory>
+#include <stdexcept>
+#include <stdio.h>
+#include <iostream>
+
+// CTP7 TCP/IP Client 
+
+#include <UCT2016Layer1CTP7.hh>
 
 // user include files
 #include "FWCore/Framework/interface/Frameworkfwd.h"
@@ -66,20 +73,18 @@ class L1TCaloLayer1Spy : public edm::EDProducer {
 //
 // constructors and destructor
 //
-L1TCaloLayer1Spy::L1TCaloLayer1Spy(const edm::ParameterSet& iConfig)
+L1TCaloLayer1Spy::L1TCaloLayer1Spy(const edm::ParameterSet& iConfig) 
 {
-   //register your products
-/* Examples
-   produces<ExampleData2>();
-
-   //if do put with a label
-   produces<ExampleData2>("label");
- 
-   //if you want to put into the Run
-   produces<ExampleData2,InRun>();
-*/
-   //now do what ever other initialization is needed
-  
+  std::vector<UCT2016Layer1CTP7*> cards;
+  for(int phi = 0; phi <= 17; phi++) {
+    std::cout << "Connecting to phi=" << phi << std::endl;
+    try {
+      cards.push_back(new UCT2016Layer1CTP7(phi));
+    }
+    catch (std::runtime_error &e) {
+      std::cout << "Failed connecting to phi=" << phi << e.what() << std::endl;
+    }
+  }
 }
 
 
