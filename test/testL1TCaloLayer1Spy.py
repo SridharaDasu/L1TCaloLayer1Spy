@@ -5,7 +5,11 @@ process = cms.Process("L1TCaloLayer1Test")
 process.load("FWCore.MessageService.MessageLogger_cfi")
 process.load('L1Trigger.L1TCaloLayer1Spy.l1tCaloLayer1SpyDigis_cfi')
 
-process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(10) )
+# Put multiples of 162 - output data for eighteen BXs are available for each capture
+# One event is created for each capture.  Putting non-multiples of 162 just means
+# that some of the events captured are "wasted".
+
+process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(162) )
 
 process.source = cms.Source("EmptySource")
 

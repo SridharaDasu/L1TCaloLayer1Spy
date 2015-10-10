@@ -1,1 +1,28 @@
+#L1TCaloLayer1Spy
+
+This package contains an unusual CMSSW producer, which uses TCP/IP
+client to connect to the server running on CTP7 embedded linux systems
+and creates raw data objects for input and output of CMS Level-1
+Calorimeter Layer-1 System, i.e.,
+  produces<HcalTrigPrimDigiCollection>();
+  produces<EcalTrigPrimDigiCollection>();
+  produces<CaloTowerBxCollection>();
+
+When run on machines with P5 online environment it can obtain a contiguous
+set of zerobias crossings being processed by the Layer-1 system.  These
+are particularly useful for Layer-1 system monitoring and pileup level
+determination.
+
+Before using this package one needs to obtain the TCP/IP client software
+using the online cactus SVN repository and install it somewhere.  Note 
+that this depends on google protobuf-lite, which needs to have been 
+installed on the build machine.
+
 svn co svn+ssh://svn.cern.ch/reps/cactus/trunk/cactusprojects/calol1/extern/UCT2016Layer1CTP7Client UCT2016Layer1CTP7Client
+
+For your convenience the client is currently installed on CERN AFS
+in /afs/cern.ch/user/d/dasu/ and the directory trees are accessible 
+to all system:anyuser.  So, you should be able to build whereever 
+you have access to AFS with CERN tokens.
+
+In case of problems, report to : dasu@hep.wisc.edu
