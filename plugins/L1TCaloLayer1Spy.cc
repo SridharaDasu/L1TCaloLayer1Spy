@@ -149,9 +149,9 @@ L1TCaloLayer1Spy::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 
   // FIXME: For testing purpose use some random data :)
 
-  for(int caloEta = -28; caloEta <= 28; caloEta++) {
-    if(caloEta != 0) {
-      for(int caloPhi = 1; caloPhi <= 72; caloPhi++) {
+  for(int caloPhi = 1; caloPhi <= 72; caloPhi++) {
+    for(int caloEta = -28; caloEta <= 28; caloEta++) {
+      if(caloEta != 0) {
 	// Make random ECALTrigPrimitives
 	uint32_t em = (random() & 0xFF);
 	bool efb = (random() & 0x1);
