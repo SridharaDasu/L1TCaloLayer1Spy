@@ -27,11 +27,11 @@
 
 // CTP7 TCP/IP Client 
 
-#include <UCT2016Layer1CTP7.hh>
+#include <UCT2016Layer1.hh>
 
 // user include files
 #include "FWCore/Framework/interface/Frameworkfwd.h"
-#include "FWCore/Framework/interface/EDProducer.h"
+#include "FWCore/Framework/interface/one/EDProducer.h"
 
 #include "FWCore/Framework/interface/Event.h"
 #include "FWCore/Framework/interface/MakerMacros.h"
@@ -58,7 +58,7 @@ using namespace l1t;
 // class declaration
 //
 
-class L1TCaloLayer1Spy : public edm::EDProducer {
+class L1TCaloLayer1Spy : public edm::one::EDProducer<> {
    public:
       explicit L1TCaloLayer1Spy(const edm::ParameterSet&);
       ~L1TCaloLayer1Spy();
@@ -79,12 +79,18 @@ class L1TCaloLayer1Spy : public edm::EDProducer {
 
   std::string phiMapFile;
 
-  uint32_t selectedOrbitNumber;
   uint32_t selectedBXNumber;
 
   bool verbose;
 
-  std::vector<UCT2016Layer1CTP7*> cards;
+  uint32_t eventNumber;
+
+  std::unique_ptr<UCT2016Layer1> layer1;
+
+  std::vector< std::vector< uint32_t > > negativeEtaInputData;
+  std::vector< std::vector< uint32_t > > positiveEtaInputData;
+  std::vector< std::vector< uint32_t > > negativeEtaOutputData;
+  std::vector< std::vector< uint32_t > > positiveEtaOutputData;
 
 };
 
@@ -102,28 +108,23 @@ class L1TCaloLayer1Spy : public edm::EDProducer {
 //
 L1TCaloLayer1Spy::L1TCaloLayer1Spy(const edm::ParameterSet& iConfig) :
   phiMapFile(iConfig.getUntrackedParameter<std::string>("Layer1PhiMapXMLFile")),
-  selectedOrbitNumber(iConfig.getUntrackedParameter<uint32_t>("SelectedOrbitNumber")),
   selectedBXNumber(iConfig.getUntrackedParameter<uint32_t>("SelectedBXNumber")),
-  verbose(iConfig.getUntrackedParameter<bool>("verbose")) 
+  verbose(iConfig.getUntrackedParameter<bool>("verbose")),
+  eventNumber(0),
+  layer1(new UCT2016Layer1(phiMapFile)),
+  negativeEtaInputData(36, std::vector<uint32_t>(1024)),
+  positiveEtaInputData(36, std::vector<uint32_t>(1024)),
+  negativeEtaOutputData(24, std::vector<uint32_t>(1024)),
+  positiveEtaOutputData(24, std::vector<uint32_t>(1024))
 {
   produces<HcalTrigPrimDigiCollection>();
   produces<EcalTrigPrimDigiCollection>();
   produces<CaloTowerBxCollection>();
-  for(int phi = 0; phi <= 17; phi++) {
-    std::cout << "Connecting to phi=" << phi << std::endl;
-    try {
-      cards.push_back(new UCT2016Layer1CTP7(phi, phiMapFile));
-    }
-    catch (std::runtime_error &e) {
-      std::cout << "Failed connecting to phi=" << phi << "; " << e.what() << std::endl;
-    }
-  }
 }
 
 
 L1TCaloLayer1Spy::~L1TCaloLayer1Spy()
 {
-
 }
 
 
@@ -136,72 +137,159 @@ void
 L1TCaloLayer1Spy::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 {
 
+  static std::string theRunConfiguration;
+
   using namespace edm;
 
   std::auto_ptr<EcalTrigPrimDigiCollection> ecalTPGs(new EcalTrigPrimDigiCollection);
   std::auto_ptr<HcalTrigPrimDigiCollection> hcalTPGs(new HcalTrigPrimDigiCollection);
   std::auto_ptr<CaloTowerBxCollection> towersColl (new CaloTowerBxCollection);
 
+  // Determine if we need to take action getting data from layer1, and if so do!
+  if((eventNumber % 162) == 0) {
+
+    std::cout << "Calling getRunMode() " << std::endl;
+    std::cout.flush();
+
+    // Skip processing if layer-1 is in inappropriate mode
+    // getRunMode also verifies that the mode is useable for captures
+    UCT2016Layer1CTP7::RunMode mode;
+    if(!layer1->getRunMode(mode)) {
+      std::cerr << "L1TCaloLayer1Spy: Inappropriate mode set for Layer-1; Set mode = " << mode << std::endl;
+      return;
+    }
+    
+    // Get configuration for record
+    // getConfiguration ensures that the entire layer-1 system is in same configuration
+    
+    std::cout << "Calling getConfiguration() " << std::endl;
+    std::cout.flush();
+
+    std::string configuration;
+    if(!layer1->getConfiguration(configuration)) {
+      std::cerr << "L1TCaloLayer1Spy: Could not read configuration from CTP7 " << std::endl;
+      return;
+    }
+    if(theRunConfiguration == "") theRunConfiguration = configuration;
+    if(configuration != theRunConfiguration) {
+      std::cerr << "L1TCaloLayer1Spy: Layer1 configuration changed midstream; Will stop processing from now on"
+		<< "; configuration  = " << configuration << " != " << theRunConfiguration << std::endl;
+      return;
+    }
+
+    std::cout << "getNextCapture() " << std::endl;
+    std::cout.flush();
+
+    UCT2016Layer1CTP7::CaptureMode captureMode;
+    UCT2016Layer1CTP7::CaptureStatus captureStatus;
+    if(!layer1->getNextCapture(captureMode, selectedBXNumber, captureStatus, 
+			       negativeEtaInputData, positiveEtaInputData,
+			       negativeEtaOutputData, positiveEtaOutputData)) {
+      std::cerr << "L1TCaloLayer1Spy: Layer1 could not make a capture" << std::endl;
+      return;
+    }
+
+  }
+
   // Trigger system processes one BX per "event", and the
   // users of this products should expect the hit BX data only.
+  // Use data for the event from the layer1 buffers incrementing 
+  // to pick the next BX
 
   int theBX = 0;
 
-  // FIXME: For testing purpose use some random data :)
-
-  for(int caloPhi = 1; caloPhi <= 72; caloPhi++) {
-    for(int caloEta = -28; caloEta <= 28; caloEta++) {
-      if(caloEta != 0) {
-	// Make random ECALTrigPrimitives
-	uint32_t em = (random() & 0xFF);
-	bool efb = (random() & 0x1);
-	uint16_t towerDatum = em;
-	if(efb) towerDatum |= 0x0100;
-	EcalTriggerPrimitiveSample sample(towerDatum); 
-	int iEta = abs(caloEta);
-	int zSide = caloEta / iEta;
-	EcalSubdetector ecalTriggerTower = EcalSubdetector::EcalTriggerTower;
-	EcalTrigTowerDetId id(zSide, ecalTriggerTower, iEta, caloPhi);
-	EcalTriggerPrimitiveDigi etpg(id);
-	etpg.setSize(1);
-	etpg.setSample(0, sample);
-	ecalTPGs->push_back(etpg);
-	// Make random HCALTrigPrimitives
-	uint32_t hd = (random() & 0xFF);
-	bool hfb = (random() & 0x1);
-	towerDatum = em;
-	if(hfb) towerDatum |= 0x0100;
-	HcalTriggerPrimitiveSample hSample(towerDatum); 
-	HcalTrigTowerDetId hid(caloEta, caloPhi);
-	HcalTriggerPrimitiveDigi htpg(hid);
-	htpg.setSize(1);
-	htpg.setSample(0, hSample);
-	hcalTPGs->push_back(htpg);
-	// Make caloTowers
-	CaloTower caloTower;
-	uint32_t et = em + hd;
-	uint32_t er = 0;
-	uint32_t qualBits = 0;
-	if(em == 0 || hd == 0) qualBits |= 0x01;
-	if(hd == 0 || em >= hd) qualBits |= 0x10;
-	if(em == hd) {
-	  er = 0;
+  // Produce input data
+  // Loop over all cards
+  for(uint32_t cardPhi = 0; cardPhi < 18; cardPhi++) {
+    // Loop over both sides
+    for(uint32_t cardSide = 0; cardSide < 2; cardSide++) {
+      // Loop over all links
+      for(uint32_t link = 0; link < 14; link++) {
+	// Each event eats four words of input buffers
+	uint32_t offset = (eventNumber % 162) * 4;
+	uint32_t *ecalLinkData = 0;
+	uint32_t *hcalLinkData = 0;
+	if(cardSide == 0) {
+	  ecalLinkData = &(positiveEtaInputData[link].data())[offset];
+	  hcalLinkData = &(positiveEtaInputData[16+link].data())[offset];
 	}
-	else if(em != 0 && em > hd) {
-	  er = (uint32_t) log2(((double) hd) / ((double) em));
+	else {
+	  ecalLinkData = &(negativeEtaInputData[link].data())[offset];
+	  hcalLinkData = &(negativeEtaInputData[16+link].data())[offset];
 	}
-	else if(hd != 0 && hd > em) {
-	  er = (uint32_t) log2(((double) em) / ((double) hd));
+	// Bottom eight bits of the third word contain ECAL finegrain feature bits
+	// Store them for later access in the loop
+	uint8_t ecalFBits = (ecalLinkData[2] & 0xFF);
+	// The third 32-bit word + bottom 16 bits of the fourth word make up 
+	// 6-bit feature word for each of the eight towers.  They are stitched
+	// together in a 64-bit word here to be pealed of as needed later in loops
+	uint64_t hcalFBits = hcalLinkData[2];
+	hcalFBits |= (((uint64_t) (hcalLinkData[3] & 0xFFFF)) << 32);
+	// Process all Eta in a link
+	for(uint32_t dEta = 0; dEta < 2; dEta++) {
+	  uint32_t ecalDataWord = ecalLinkData[dEta];
+	  uint32_t hcalDataWord = hcalLinkData[dEta];
+	  // Process all Phi in a link
+	  for(uint32_t dPhi = 0; dPhi < 4; dPhi++) {
+	    // Determine tower data and location in (caloEta, caloPhi)
+	    int absCaloEta = link * 2 + dEta + 1;
+	    int zSide = +1;
+	    if(cardSide == 1) {
+	      zSide = -1;
+	    }
+	    int caloEta = zSide * absCaloEta;
+	    // Make ECALTriggerPrimitive
+	    uint32_t em = (ecalDataWord >> dPhi) & (0xFF);
+	    int caloPhi = cardPhi * 4 + dPhi + 1;
+	    bool efb = ((ecalFBits & (0x1 << (dEta * 4 + dPhi))) == (0x1));
+	    uint16_t towerDatum = em;
+	    if(efb) towerDatum |= 0x0100;
+	    EcalTriggerPrimitiveSample sample(towerDatum); 
+	    EcalSubdetector ecalTriggerTower = EcalSubdetector::EcalTriggerTower;
+	    EcalTrigTowerDetId id(zSide, ecalTriggerTower, absCaloEta, caloPhi);
+	    EcalTriggerPrimitiveDigi etpg(id);
+	    etpg.setSize(1);
+	    etpg.setSample(0, sample);
+	    ecalTPGs->push_back(etpg);
+	    // Make HCALTriggerPrimitive
+	    uint32_t hd = (hcalDataWord >> dPhi) & (0xFF);
+	    uint8_t hfb = (hcalFBits & (0x3F << (dEta * 4 + dPhi)*6));
+	    towerDatum = (hd + (hfb << 16));
+	    HcalTriggerPrimitiveSample hSample(towerDatum); 
+	    HcalTrigTowerDetId hid(caloEta, caloPhi);
+	    HcalTriggerPrimitiveDigi htpg(hid);
+	    htpg.setSize(1);
+	    htpg.setSample(0, hSample);
+	    hcalTPGs->push_back(htpg);
+	    // Make caloTowers
+	    CaloTower caloTower;
+	    uint32_t et = em + hd;
+	    uint32_t er = 0;
+	    uint32_t qualBits = 0;
+	    if(em == 0 || hd == 0) qualBits |= 0x1;
+	    if(hd == 0 || em >= hd) qualBits |= 0x2;
+	    if(efb) qualBits |= 0x4;
+	    if(hfb != 0) qualBits |= 0x8;
+	    if(em == hd) {
+	      er = 0;
+	    }
+	    else if(em != 0 && em > hd) {
+	      er = (uint32_t) log2(((double) hd) / ((double) em));
+	    }
+	    else if(hd != 0 && hd > em) {
+	      er = (uint32_t) log2(((double) em) / ((double) hd));
+	    }
+	    if(er > 0x7) er = 7;
+	    caloTower.setHwPt(et);               // Bits 0-8 of the 16-bit word per the interface protocol document
+	    caloTower.setHwEtRatio(er);          // Bits 9-11 of the 16-bit word per the interface protocol document
+	    caloTower.setHwQual(qualBits);       // Bits 12-15 of the 16-bit word per the interface protocol document
+	    caloTower.setHwEta(caloEta);
+	    caloTower.setHwPhi(caloPhi);
+	    caloTower.setHwEtEm(em);             // This is provided as a courtesy - not available to hardware
+	    caloTower.setHwEtHad(hd);            // This is provided as a courtesy - not available to hardware
+	    towersColl->push_back(theBX, caloTower);
+	  }
 	}
-	if(er > 0x7) er = 7;
-	caloTower.setHwPt(et);               // Bits 0-8 of the 16-bit word per the interface protocol document
-	caloTower.setHwEtRatio(er);          // Bits 9-11 of the 16-bit word per the interface protocol document
-	caloTower.setHwQual(qualBits);       // Bits 12-15 of the 16-bit word per the interface protocol document
-	caloTower.setHwEta(caloEta);
-	caloTower.setHwPhi(caloPhi);
-	caloTower.setHwEtEm(em);             // This is provided as a courtesy - not available to hardware
-	caloTower.setHwEtHad(hd);            // This is provided as a courtesy - not available to hardware
-	towersColl->push_back(theBX, caloTower);
       }
     }
   }
@@ -209,6 +297,8 @@ L1TCaloLayer1Spy::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
   iEvent.put(ecalTPGs);
   iEvent.put(hcalTPGs);
   iEvent.put(towersColl);
+
+  eventNumber++;
 
 }
 

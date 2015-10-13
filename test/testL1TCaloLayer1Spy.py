@@ -9,7 +9,7 @@ process.load('L1Trigger.L1TCaloLayer1Spy.l1tCaloLayer1SpyDigis_cfi')
 # One event is created for each capture.  Putting non-multiples of 162 just means
 # that some of the events captured are "wasted".
 
-process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(162) )
+process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(1620) )
 
 process.source = cms.Source("EmptySource")
 
