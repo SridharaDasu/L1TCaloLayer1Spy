@@ -14,7 +14,7 @@ process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(1620) )
 process.source = cms.Source("EmptySource")
 
 process.out = cms.OutputModule("PoolOutputModule",
-    fileName = cms.untracked.string('l1tCaloLayer1Spy.root'),
+    fileName = cms.untracked.string('/data/dasu/l1tCaloLayer1Spy.root'),
     outputCommands = cms.untracked.vstring('keep *')
 )
 

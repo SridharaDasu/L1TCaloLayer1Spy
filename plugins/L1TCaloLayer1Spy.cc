@@ -144,9 +144,15 @@ L1TCaloLayer1Spy::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
   std::auto_ptr<EcalTrigPrimDigiCollection> ecalTPGs(new EcalTrigPrimDigiCollection);
   std::auto_ptr<HcalTrigPrimDigiCollection> hcalTPGs(new HcalTrigPrimDigiCollection);
   std::auto_ptr<CaloTowerBxCollection> towersColl (new CaloTowerBxCollection);
+  
+  uint32_t nTMTCards = 9;
+  uint32_t nOutputEventWords = 6 * nTMTCards; // 6 32-bit words @ 10 Gbps 
+  uint32_t nOutputEventsPerCapturePerLinkPair = 1024 / nOutputEventWords; // 18 events are captured per read per output link pair
+  uint32_t nOutputEventsPerCapture = nOutputEventsPerCapturePerLinkPair * nTMTCards; // 162 events
+  uint32_t nInputEventsPerCapture = nOutputEventsPerCapture; // Ignore few extra events which fit in as there is no output for that
 
   // Determine if we need to take action getting data from layer1, and if so do!
-  if((eventNumber % 162) == 0) {
+  if((eventNumber % nInputEventsPerCapture) == 0) {
 
     std::cout << "Calling getRunMode() " << std::endl;
     std::cout.flush();
@@ -203,7 +209,7 @@ L1TCaloLayer1Spy::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
   for(uint32_t cardPhi = 0; cardPhi < 18; cardPhi++) {
     // Loop over both sides
     for(uint32_t cardSide = 0; cardSide < 2; cardSide++) {
-      // Loop over all links
+      // Loop over all input links
       for(uint32_t link = 0; link < 14; link++) {
 	// Each event eats four words of input buffers
 	uint32_t offset = (eventNumber % 162) * 4;
@@ -238,9 +244,9 @@ L1TCaloLayer1Spy::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 	      zSide = -1;
 	    }
 	    int caloEta = zSide * absCaloEta;
+	    int caloPhi = cardPhi * 4 + dPhi + 1;
 	    // Make ECALTriggerPrimitive
 	    uint32_t em = (ecalDataWord >> dPhi) & (0xFF);
-	    int caloPhi = cardPhi * 4 + dPhi + 1;
 	    bool efb = ((ecalFBits & (0x1 << (dEta * 4 + dPhi))) == (0x1));
 	    uint16_t towerDatum = em;
 	    if(efb) towerDatum |= 0x0100;
@@ -261,34 +267,39 @@ L1TCaloLayer1Spy::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 	    htpg.setSize(1);
 	    htpg.setSample(0, hSample);
 	    hcalTPGs->push_back(htpg);
-	    // Make caloTowers
-	    CaloTower caloTower;
-	    uint32_t et = em + hd;
-	    uint32_t er = 0;
-	    uint32_t qualBits = 0;
-	    if(em == 0 || hd == 0) qualBits |= 0x1;
-	    if(hd == 0 || em >= hd) qualBits |= 0x2;
-	    if(efb) qualBits |= 0x4;
-	    if(hfb != 0) qualBits |= 0x8;
-	    if(em == hd) {
-	      er = 0;
-	    }
-	    else if(em != 0 && em > hd) {
-	      er = (uint32_t) log2(((double) hd) / ((double) em));
-	    }
-	    else if(hd != 0 && hd > em) {
-	      er = (uint32_t) log2(((double) em) / ((double) hd));
-	    }
-	    if(er > 0x7) er = 7;
-	    caloTower.setHwPt(et);               // Bits 0-8 of the 16-bit word per the interface protocol document
-	    caloTower.setHwEtRatio(er);          // Bits 9-11 of the 16-bit word per the interface protocol document
-	    caloTower.setHwQual(qualBits);       // Bits 12-15 of the 16-bit word per the interface protocol document
-	    caloTower.setHwEta(caloEta);
-	    caloTower.setHwPhi(caloPhi);
-	    caloTower.setHwEtEm(em);             // This is provided as a courtesy - not available to hardware
-	    caloTower.setHwEtHad(hd);            // This is provided as a courtesy - not available to hardware
-	    towersColl->push_back(theBX, caloTower);
 	  }
+	}
+      }
+      // Output data
+      // Make caloTower collection just for Barrel and Endcap for the moment
+      uint32_t nHeader = 1;
+      uint32_t nBEDataWords = 28;
+      for(uint32_t tEta = 0; tEta < nBEDataWords; tEta++) {
+	for(uint32_t dPhi = 0; dPhi < 4; dPhi++) {
+	  uint32_t outputLink = (eventNumber % nTMTCards) + (dPhi % 2);
+	  uint32_t offset = ((eventNumber % nOutputEventsPerCapturePerLinkPair) / nTMTCards) * nOutputEventWords + nHeader + (tEta / 2);
+	  uint16_t dataWord;
+	  int zSide;
+	  if(cardSide == 0) {
+	    dataWord = ((negativeEtaOutputData[outputLink].data())[offset] & ((0xFFFF) >> ((tEta % 2) * 16)));
+	    zSide = +1;
+	  }
+	  else {
+	    dataWord = ((positiveEtaOutputData[outputLink].data())[offset] & ((0xFFFF) >> ((tEta % 2) * 16)));
+	    zSide = -1;
+	  }
+	  CaloTower caloTower;
+	  caloTower.setHwPt(dataWord & 0x1FF);               // Bits 0-8 of the 16-bit word per the interface protocol document
+	  caloTower.setHwEtRatio((dataWord & 0x7)>>9);       // Bits 9-11 of the 16-bit word per the interface protocol document
+	  caloTower.setHwQual((dataWord & 0xF)>>12);         // Bits 12-15 of the 16-bit word per the interface protocol document
+	  // Determine tower data and location in (caloEta, caloPhi)
+	  int absCaloEta = tEta + 1;
+	  int caloEta = zSide * absCaloEta;
+	  int caloPhi = cardPhi * 4 + dPhi + 1;
+	  caloTower.setHwEta(caloEta);
+	  caloTower.setHwPhi(caloPhi);
+	  // Push the tower in
+	  towersColl->push_back(theBX, caloTower);
 	}
       }
     }
