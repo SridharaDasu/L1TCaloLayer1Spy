@@ -87,10 +87,10 @@ class L1TCaloLayer1Spy : public edm::one::EDProducer<> {
 
   std::unique_ptr<UCT2016Layer1> layer1;
 
-  std::vector< std::vector< uint32_t > > negativeEtaInputData;
-  std::vector< std::vector< uint32_t > > positiveEtaInputData;
-  std::vector< std::vector< uint32_t > > negativeEtaOutputData;
-  std::vector< std::vector< uint32_t > > positiveEtaOutputData;
+  std::vector< std::vector< std::vector< uint32_t> > > negativeEtaInputData;
+  std::vector< std::vector< std::vector< uint32_t> > > positiveEtaInputData;
+  std::vector< std::vector< std::vector< uint32_t> > > negativeEtaOutputData;
+  std::vector< std::vector< std::vector< uint32_t> > > positiveEtaOutputData;
 
 };
 
@@ -112,10 +112,10 @@ L1TCaloLayer1Spy::L1TCaloLayer1Spy(const edm::ParameterSet& iConfig) :
   verbose(iConfig.getUntrackedParameter<bool>("verbose")),
   eventNumber(0),
   layer1(new UCT2016Layer1(phiMapFile)),
-  negativeEtaInputData(36, std::vector<uint32_t>(1024)),
-  positiveEtaInputData(36, std::vector<uint32_t>(1024)),
-  negativeEtaOutputData(24, std::vector<uint32_t>(1024)),
-  positiveEtaOutputData(24, std::vector<uint32_t>(1024))
+  negativeEtaInputData(nLayer1Cards, std::vector< std::vector<uint32_t> >(nInputLinks, std::vector<uint32_t>(nInputWordsPerCapturePerLink))),
+  positiveEtaInputData(nLayer1Cards, std::vector< std::vector<uint32_t> >(nInputLinks, std::vector<uint32_t>(nInputWordsPerCapturePerLink))),
+  negativeEtaOutputData(nLayer1Cards, std::vector< std::vector<uint32_t> >(nTMTLinks, std::vector<uint32_t>(nOutputWordsPerCapturePerLink))),
+  positiveEtaOutputData(nLayer1Cards, std::vector< std::vector<uint32_t> >(nTMTLinks, std::vector<uint32_t>(nOutputWordsPerCapturePerLink)))
 {
   produces<HcalTrigPrimDigiCollection>();
   produces<EcalTrigPrimDigiCollection>();
@@ -145,12 +145,6 @@ L1TCaloLayer1Spy::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
   std::auto_ptr<HcalTrigPrimDigiCollection> hcalTPGs(new HcalTrigPrimDigiCollection);
   std::auto_ptr<CaloTowerBxCollection> towersColl (new CaloTowerBxCollection);
   
-  uint32_t nTMTCards = 9;
-  uint32_t nOutputEventWords = 6 * nTMTCards; // 6 32-bit words @ 10 Gbps 
-  uint32_t nOutputEventsPerCapturePerLinkPair = 1024 / nOutputEventWords; // 18 events are captured per read per output link pair
-  uint32_t nOutputEventsPerCapture = nOutputEventsPerCapturePerLinkPair * nTMTCards; // 162 events
-  uint32_t nInputEventsPerCapture = nOutputEventsPerCapture; // Ignore few extra events which fit in as there is no output for that
-
   // Determine if we need to take action getting data from layer1, and if so do!
   if((eventNumber % nInputEventsPerCapture) == 0) {
 
@@ -188,9 +182,10 @@ L1TCaloLayer1Spy::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 
     UCT2016Layer1CTP7::CaptureMode captureMode;
     UCT2016Layer1CTP7::CaptureStatus captureStatus;
-    if(!layer1->getNextCapture(captureMode, selectedBXNumber, captureStatus, 
-			       negativeEtaInputData, positiveEtaInputData,
-			       negativeEtaOutputData, positiveEtaOutputData)) {
+    uint32_t nCaptured = layer1->getNextCapture(captureMode, selectedBXNumber, captureStatus, 
+						negativeEtaInputData, positiveEtaInputData,
+						negativeEtaOutputData, positiveEtaOutputData);
+    if(nCaptured != nInputEventsPerCapture) {
       std::cerr << "L1TCaloLayer1Spy: Layer1 could not make a capture" << std::endl;
       return;
     }
@@ -212,16 +207,16 @@ L1TCaloLayer1Spy::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
       // Loop over all input links
       for(uint32_t link = 0; link < 14; link++) {
 	// Each event eats four words of input buffers
-	uint32_t offset = (eventNumber % 162) * 4;
+	uint32_t offset = (eventNumber % nInputEventsPerCapture) * 4;
 	uint32_t *ecalLinkData = 0;
 	uint32_t *hcalLinkData = 0;
 	if(cardSide == 0) {
-	  ecalLinkData = &(positiveEtaInputData[link].data())[offset];
-	  hcalLinkData = &(positiveEtaInputData[16+link].data())[offset];
+	  ecalLinkData = &(positiveEtaInputData[cardPhi][link].data())[offset];
+	  hcalLinkData = &(positiveEtaInputData[cardPhi][14+link].data())[offset];
 	}
 	else {
-	  ecalLinkData = &(negativeEtaInputData[link].data())[offset];
-	  hcalLinkData = &(negativeEtaInputData[16+link].data())[offset];
+	  ecalLinkData = &(negativeEtaInputData[cardPhi][link].data())[offset];
+	  hcalLinkData = &(negativeEtaInputData[cardPhi][14+link].data())[offset];
 	}
 	// Bottom eight bits of the third word contain ECAL finegrain feature bits
 	// Store them for later access in the loop
@@ -281,11 +276,11 @@ L1TCaloLayer1Spy::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 	  uint16_t dataWord;
 	  int zSide;
 	  if(cardSide == 0) {
-	    dataWord = ((negativeEtaOutputData[outputLink].data())[offset] & ((0xFFFF) >> ((tEta % 2) * 16)));
+	    dataWord = ((negativeEtaOutputData[cardPhi][outputLink].data())[offset] & ((0xFFFF) >> ((tEta % 2) * 16)));
 	    zSide = +1;
 	  }
 	  else {
-	    dataWord = ((positiveEtaOutputData[outputLink].data())[offset] & ((0xFFFF) >> ((tEta % 2) * 16)));
+	    dataWord = ((positiveEtaOutputData[cardPhi][outputLink].data())[offset] & ((0xFFFF) >> ((tEta % 2) * 16)));
 	    zSide = -1;
 	  }
 	  CaloTower caloTower;
