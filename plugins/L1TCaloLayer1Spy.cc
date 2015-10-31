@@ -203,20 +203,20 @@ L1TCaloLayer1Spy::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
   // Loop over all cards
   for(uint32_t cardPhi = 0; cardPhi < 18; cardPhi++) {
     // Loop over both sides
-    for(uint32_t cardSide = 0; cardSide < 2; cardSide++) {
+    for(int cardSide = -1; cardSide <= 1; cardSide+=2) {
       // Loop over all input links
       for(uint32_t link = 0; link < 14; link++) {
 	// Each event eats four words of input buffers
 	uint32_t offset = (eventNumber % nInputEventsPerCapture) * 4;
 	uint32_t *ecalLinkData = 0;
 	uint32_t *hcalLinkData = 0;
-	if(cardSide == 0) {
-	  ecalLinkData = &(positiveEtaInputData[cardPhi][link].data())[offset];
-	  hcalLinkData = &(positiveEtaInputData[cardPhi][14+link].data())[offset];
+	if(cardSide == 1) {
+	  ecalLinkData = &(positiveEtaInputData[cardPhi][2*link].data())[offset];
+	  hcalLinkData = &(positiveEtaInputData[cardPhi][2*link+1].data())[offset];
 	}
 	else {
-	  ecalLinkData = &(negativeEtaInputData[cardPhi][link].data())[offset];
-	  hcalLinkData = &(negativeEtaInputData[cardPhi][14+link].data())[offset];
+	  ecalLinkData = &(negativeEtaInputData[cardPhi][2*link].data())[offset];
+	  hcalLinkData = &(negativeEtaInputData[cardPhi][2*link+1].data())[offset];
 	}
 	// Bottom eight bits of the third word contain ECAL finegrain feature bits
 	// Store them for later access in the loop
@@ -233,29 +233,26 @@ L1TCaloLayer1Spy::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 	  // Process all Phi in a link
 	  for(uint32_t dPhi = 0; dPhi < 4; dPhi++) {
 	    // Determine tower data and location in (caloEta, caloPhi)
-	    int absCaloEta = link * 2 + dEta + 1;
-	    int zSide = +1;
-	    if(cardSide == 1) {
-	      zSide = -1;
-	    }
-	    int caloEta = zSide * absCaloEta;
-	    int caloPhi = cardPhi * 4 + dPhi + 1;
+	    int absCaloEta = link*2 + dEta + 1;
+	    int caloEta = cardSide * absCaloEta;
+	    int caloPhi = cardPhi * 4 + dPhi - 1;
+	    if(caloPhi <= 0)caloPhi += 72;
 	    // Make ECALTriggerPrimitive
-	    uint32_t em = (ecalDataWord >> dPhi) & (0xFF);
-	    bool efb = ((ecalFBits & (0x1 << (dEta * 4 + dPhi))) == (0x1));
+	    uint32_t em = (ecalDataWord >> (dPhi * 8)) & (0xFF);
+	    bool efb = ((ecalFBits & (0x1 << (dEta * 4 + dPhi))) != 0);
 	    uint16_t towerDatum = em;
 	    if(efb) towerDatum |= 0x0100;
 	    EcalTriggerPrimitiveSample sample(towerDatum); 
 	    EcalSubdetector ecalTriggerTower = EcalSubdetector::EcalTriggerTower;
-	    EcalTrigTowerDetId id(zSide, ecalTriggerTower, absCaloEta, caloPhi);
+	    EcalTrigTowerDetId id(cardSide, ecalTriggerTower, absCaloEta, caloPhi);
 	    EcalTriggerPrimitiveDigi etpg(id);
 	    etpg.setSize(1);
 	    etpg.setSample(0, sample);
 	    ecalTPGs->push_back(etpg);
 	    // Make HCALTriggerPrimitive
-	    uint32_t hd = (hcalDataWord >> dPhi) & (0xFF);
-	    uint8_t hfb = (hcalFBits & (0x3F << (dEta * 4 + dPhi)*6));
-	    towerDatum = (hd + (hfb << 16));
+	    uint32_t hd = (hcalDataWord >> (dPhi * 8)) & (0xFF);
+	    uint8_t hfb = (hcalFBits >> (dEta * 4 + dPhi)*6) & 0x3F;
+	    towerDatum = (hd + (hfb << 8));
 	    HcalTriggerPrimitiveSample hSample(towerDatum); 
 	    HcalTrigTowerDetId hid(caloEta, caloPhi);
 	    HcalTriggerPrimitiveDigi htpg(hid);
@@ -271,26 +268,24 @@ L1TCaloLayer1Spy::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
       uint32_t nBEDataWords = 28;
       for(uint32_t tEta = 0; tEta < nBEDataWords; tEta++) {
 	for(uint32_t dPhi = 0; dPhi < 4; dPhi++) {
-	  uint32_t outputLink = (eventNumber % nTMTCards) + (dPhi % 2);
-	  uint32_t offset = ((eventNumber % nOutputEventsPerCapturePerLinkPair) / nTMTCards) * nOutputEventWords + nHeader + (tEta / 2);
+	  uint32_t outputLink = (eventNumber % nTMTCards)*2 + (dPhi/2);
+	  uint32_t offset = ((eventNumber % nOutputEventsPerCapturePerLinkPair) / nTMTCards) * nOutputEventWords + nHeader + tEta;
 	  uint16_t dataWord;
-	  int zSide;
-	  if(cardSide == 0) {
-	    dataWord = ((negativeEtaOutputData[cardPhi][outputLink].data())[offset] & ((0xFFFF) >> ((tEta % 2) * 16)));
-	    zSide = +1;
+	  if(cardSide == -1) {
+	    dataWord = (((negativeEtaOutputData[cardPhi][outputLink].data())[offset]) >> ((dPhi%2) * 16)) & 0xFFFF;
 	  }
 	  else {
-	    dataWord = ((positiveEtaOutputData[cardPhi][outputLink].data())[offset] & ((0xFFFF) >> ((tEta % 2) * 16)));
-	    zSide = -1;
+	    dataWord = (((positiveEtaOutputData[cardPhi][outputLink].data())[offset]) >> ((dPhi%2) * 16)) & 0xFFFF;
 	  }
 	  CaloTower caloTower;
 	  caloTower.setHwPt(dataWord & 0x1FF);               // Bits 0-8 of the 16-bit word per the interface protocol document
-	  caloTower.setHwEtRatio((dataWord & 0x7)>>9);       // Bits 9-11 of the 16-bit word per the interface protocol document
-	  caloTower.setHwQual((dataWord & 0xF)>>12);         // Bits 12-15 of the 16-bit word per the interface protocol document
+	  caloTower.setHwEtRatio((dataWord >> 9) & 0x7);     // Bits 9-11 of the 16-bit word per the interface protocol document
+	  caloTower.setHwQual((dataWord >> 12) & 0xF);       // Bits 12-15 of the 16-bit word per the interface protocol document
 	  // Determine tower data and location in (caloEta, caloPhi)
 	  int absCaloEta = tEta + 1;
-	  int caloEta = zSide * absCaloEta;
-	  int caloPhi = cardPhi * 4 + dPhi + 1;
+	  int caloEta = cardSide * absCaloEta;
+	  int caloPhi = cardPhi * 4 + dPhi - 1;
+	  if(caloPhi <= 0)caloPhi += 72;
 	  caloTower.setHwEta(caloEta);
 	  caloTower.setHwPhi(caloPhi);
 	  // Push the tower in
