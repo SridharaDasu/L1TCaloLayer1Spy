@@ -269,7 +269,8 @@ L1TCaloLayer1Spy::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
       for(uint32_t tEta = 0; tEta < nBEDataWords; tEta++) {
 	for(uint32_t dPhi = 0; dPhi < 4; dPhi++) {
 	  uint32_t outputLink = (eventNumber % nTMTCards)*2 + (dPhi/2);
-	  uint32_t offset = ((eventNumber % nOutputEventsPerCapturePerLinkPair) / nTMTCards) * nOutputEventWords + nHeader + tEta;
+	  //	  uint32_t offset = ((eventNumber % nOutputEventsPerCapturePerLinkPair) / nTMTCards) * nOutputEventWords + nHeader + tEta;
+	  uint32_t offset = (eventNumber/nTMTCards) * nOutputEventWords + nHeader + tEta;
 	  uint16_t dataWord;
 	  if(cardSide == -1) {
 	    dataWord = (((negativeEtaOutputData[cardPhi][outputLink].data())[offset]) >> ((dPhi%2) * 16)) & 0xFFFF;
