@@ -5,6 +5,8 @@ process = cms.Process("L1TCaloLayer1Spy")
 process.load("FWCore.MessageService.MessageLogger_cfi")
 process.load('L1Trigger.L1TCaloLayer1Spy.l1tCaloLayer1SpyDigis_cfi')
 
+process.l1tCaloLayer1SpyDigis.setupString = cms.untracked.string("captures:/data/dasu/Layer1ZeroBiasCaptureData/r260490_1")
+
 # Put multiples of 162 - output data for eighteen BXs are available for each capture
 # One event is created for each capture.  Putting non-multiples of 162 just means
 # that some of the events captured are "wasted".

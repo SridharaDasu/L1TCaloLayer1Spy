@@ -77,7 +77,7 @@ class L1TCaloLayer1Spy : public edm::one::EDProducer<> {
 
       // ----------member data ---------------------------
 
-  std::string phiMapFile;
+  std::string setupString;
 
   uint32_t selectedBXNumber;
 
@@ -107,11 +107,11 @@ class L1TCaloLayer1Spy : public edm::one::EDProducer<> {
 // constructors and destructor
 //
 L1TCaloLayer1Spy::L1TCaloLayer1Spy(const edm::ParameterSet& iConfig) :
-  phiMapFile(iConfig.getUntrackedParameter<std::string>("Layer1PhiMapXMLFile")),
+  setupString(iConfig.getUntrackedParameter<std::string>("setupString")),
   selectedBXNumber(iConfig.getUntrackedParameter<uint32_t>("SelectedBXNumber")),
   verbose(iConfig.getUntrackedParameter<bool>("verbose")),
   eventNumber(0),
-  layer1(new UCT2016Layer1(phiMapFile)),
+  layer1(new UCT2016Layer1(setupString)),
   negativeEtaInputData(nLayer1Cards, std::vector< std::vector<uint32_t> >(nInputLinks, std::vector<uint32_t>(nInputWordsPerCapturePerLink))),
   positiveEtaInputData(nLayer1Cards, std::vector< std::vector<uint32_t> >(nInputLinks, std::vector<uint32_t>(nInputWordsPerCapturePerLink))),
   negativeEtaOutputData(nLayer1Cards, std::vector< std::vector<uint32_t> >(nTMTLinks, std::vector<uint32_t>(nOutputWordsPerCapturePerLink))),
