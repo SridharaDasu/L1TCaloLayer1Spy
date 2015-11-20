@@ -116,9 +116,8 @@ L1TCaloLayer1LUTWriter::analyze(const edm::Event& iEvent, const edm::EventSetup&
 	std::cerr << "L1TCaloLayer1LUTWriter - ecal scale factors are different for positive and negative eta ! :(" << std::endl;
       }
       // Use hcal = 0 to get ecal only energy but in RCT JetMET scale - should be 8-bit max
-      uint32_t value = rctParameters_->JetMETTPGSum(linearizedECalInput, 0, absCaloEta);
+      uint32_t value = (rctParameters_->JetMETTPGSum(linearizedECalInput, 0, absCaloEta) / rctParameters_->jetMETLSB());
       if(value > 0xFF) {
-	std::cerr << "L1TCaloLayer1LUTWriter - value should be < 255 is : " << value << std::endl;
 	value = 0xFF;
       }
       std::cout << std::dec << std::setw(3) << value;
@@ -148,9 +147,8 @@ L1TCaloLayer1LUTWriter::analyze(const edm::Event& iEvent, const edm::EventSetup&
 	std::cerr << "L1TCaloLayer1LUTWriter - hcal scale factors are different for positive and negative eta ! :(" << std::endl;
       }
       // Use ecal = 0 to get hcal only energy but in RCT JetMET scale - should be 8-bit max
-      uint32_t value = rctParameters_->JetMETTPGSum(0, linearizedHCalInput, absCaloEta);
+      uint32_t value = (rctParameters_->JetMETTPGSum(0, linearizedHCalInput, absCaloEta) / rctParameters_->jetMETLSB());
       if(value > 0xFF) {
-	std::cerr << "L1TCaloLayer1LUTWriter - hcal value should be < 255 is : " << value << std::endl;
 	value = 0xFF;
       }
       std::cout << std::dec << std::setw(3) << value;
