@@ -9,7 +9,7 @@ import EventFilter.L1TCaloLayer1RawToDigi.util as util
 from FWCore.ParameterSet.VarParsing import VarParsing
 
 options = VarParsing()
-options.register('runNumber', 0, VarParsing.multiplicity.singleton, VarParsing.varType.int, 'Run to analyze')
+options.register('runNumber', 260627, VarParsing.multiplicity.singleton, VarParsing.varType.int, 'Run to analyze')
 options.register('lumis', '1-max', VarParsing.multiplicity.singleton, VarParsing.varType.string, 'Lumis')
 options.register('dataStream', '/ExpressPhysics/Run2015D-Express-v4/FEVT', VarParsing.multiplicity.singleton, VarParsing.varType.string, 'Dataset to look for run in')
 options.register('inputFiles', [], VarParsing.multiplicity.list, VarParsing.varType.string, 'Manual file list input, will query DAS if empty')

@@ -21,6 +21,7 @@
 // system include files
 #include <iostream>
 #include <iomanip>
+#include <math.h>
 
 // user include files
 #include "FWCore/Framework/interface/Frameworkfwd.h"
@@ -99,64 +100,78 @@ L1TCaloLayer1LUTWriter::analyze(const edm::Event& iEvent, const edm::EventSetup&
   const L1CaloHcalScale* h = hcalScale.product();
 
   // Loop and write the ECAL LUT
-  std::cout << "******* ECAL LUT ********" << std::endl;
-  for(uint32_t ecalInput = 0; ecalInput <= 0xFF; ecalInput++) {
-    if(ecalInput == 0) {
+  std::cout << "============================================================================================================================================================================================================================================================================================" << std::endl;
+  std::cout << "Input  ECAL_01   ECAL_02   ECAL_03   ECAL_04   ECAL_05   ECAL-06   ECAL_07   ECAL-08   ECAL_09   ECAL_10   ECAL_11   ECAL_12   ECAL_13   ECAL_14   ECAL_15   ECAL_16   ECAL_17   ECAL-18   ECAL_19   ECAL_20   ECAL_21   ECAL_22   ECAL_23   ECAL_24   ECAL_25   ECAL_26   ECAL_27   ECAL_28" << std::endl;
+  std::cout << "============================================================================================================================================================================================================================================================================================" << std::endl;
+  for(uint32_t fb = 0; fb < 2; fb++) {
+    for(uint32_t ecalInput = 0; ecalInput <= 0xFF; ecalInput++) {
       for(int absCaloEta = 1; absCaloEta <= 28; absCaloEta++) {
-	if(absCaloEta == 1) std::cout << "eta";
-	std::cout << std::dec << std::setw(2) << absCaloEta;
-	if(absCaloEta == 1) std::cout << "  ";
-	else if(absCaloEta == 28) std::cout << std::endl;
+	double linearizedECalInput = e->et(ecalInput, absCaloEta, 1);
+	if(linearizedECalInput != (e->et(ecalInput, absCaloEta, -1))) {
+	  std::cerr << "L1TCaloLayer1LUTWriter - ecal scale factors are different for positive and negative eta ! :(" << std::endl;
+	}
+	// Use hcal = 0 to get ecal only energy but in RCT JetMET scale - should be 8-bit max
+	uint32_t value = (rctParameters_->JetMETTPGSum(linearizedECalInput, 0, absCaloEta) / rctParameters_->jetMETLSB());
+	if(value > 0xFF) {
+	  value = 0xFF;
+	}
+	if(value == 0) {
+	  value = (1 << 11);
+	}
+	else {
+	  uint32_t et_log2 = ((uint32_t) log2(value)) & 0x7;
+	  value |= (et_log2 << 12);
+	}
+	value |= (fb << 10);
+	if(absCaloEta == 1) {
+	  std::cout << std::showbase << std::internal << std::setfill('0') << std::setw(5) << std::hex
+		    << (ecalInput | (fb << 8)) << "   ";
+	}
+	std::cout << std::showbase << std::internal << std::setfill('0') << std::setw(6) << std::hex
+		  << value;
+	if(absCaloEta == 28) std::cout << std::endl;
 	else std::cout << "    ";
       }
     }
-    for(int absCaloEta = 1; absCaloEta <= 28; absCaloEta++) {
-      double linearizedECalInput = e->et(ecalInput, absCaloEta, 1);
-      if(linearizedECalInput != (e->et(ecalInput, absCaloEta, -1))) {
-	std::cerr << "L1TCaloLayer1LUTWriter - ecal scale factors are different for positive and negative eta ! :(" << std::endl;
-      }
-      // Use hcal = 0 to get ecal only energy but in RCT JetMET scale - should be 8-bit max
-      uint32_t value = (rctParameters_->JetMETTPGSum(linearizedECalInput, 0, absCaloEta) / rctParameters_->jetMETLSB());
-      if(value > 0xFF) {
-	value = 0xFF;
-      }
-      std::cout << std::dec << std::setw(3) << value;
-      if(absCaloEta == 28) std::cout << std::endl;
-      else std::cout << "   ";
-    }
   }
 
-  std::cout << "******* ECAL END ********" << std::endl;
-  std::cout << std::endl;
-  std::cout << "******* HCAL LUT ********" << std::endl;
+  std::cout << "============================================================================================================================================================================================================================================================================================" << std::endl;
+  std::cout << "Input  HCAL_01   HCAL_02   HCAL_03   HCAL_04   HCAL_05   HCAL-06   HCAL_07   HCAL-08   HCAL_09   HCAL_10   HCAL_11   HCAL_12   HCAL_13   HCAL_14   HCAL_15   HCAL_16   HCAL_17   HCAL-18   HCAL_19   HCAL_20   HCAL_21   HCAL_22   HCAL_23   HCAL_24   HCAL_25   HCAL_26   HCAL_27   HCAL_28" << std::endl;
+  std::cout << "============================================================================================================================================================================================================================================================================================" << std::endl;
 
   // Loop and write the HCAL LUT
-  for(uint32_t hcalInput = 0; hcalInput <= 0xFF; hcalInput++) {
-    if(hcalInput == 0) {
+  for(uint32_t fb = 0; fb < 2; fb++) {
+    for(uint32_t hcalInput = 0; hcalInput <= 0xFF; hcalInput++) {
       for(int absCaloEta = 1; absCaloEta <= 28; absCaloEta++) {
-	if(absCaloEta == 1) std::cout << "eta";
-	std::cout << std::dec << std::setw(2) << absCaloEta;
-	if(absCaloEta == 1) std::cout << "  ";
-	else if(absCaloEta == 28) std::cout << std::endl;
+	double linearizedHCalInput = h->et(hcalInput, absCaloEta, 1);
+	if(linearizedHCalInput != (h->et(hcalInput, absCaloEta, -1))) {
+	  std::cerr << "L1TCaloLayer1LUTWriter - hcal scale factors are different for positive and negative eta ! :(" << std::endl;
+	}
+	// Use ecal = 0 to get hcal only energy but in RCT JetMET scale - should be 8-bit max
+	uint32_t value = (rctParameters_->JetMETTPGSum(0, linearizedHCalInput, absCaloEta) / rctParameters_->jetMETLSB());
+	if(value > 0xFF) {
+	  value = 0xFF;
+	}
+	if(value == 0) {
+	  value = (1 << 11);
+	}
+	else {
+	  uint32_t et_log2 = ((uint32_t) log2(value)) & 0x7;
+	  value |= (et_log2 << 12);
+	}
+	value |= (fb << 10);
+	if(absCaloEta == 1) {
+	  std::cout << std::showbase << std::internal << std::setfill('0') << std::setw(5) << std::hex
+		    << (hcalInput | (fb << 8)) << "   ";
+	}
+	std::cout << std::showbase << std::internal << std::setfill('0') << std::setw(6) << std::hex
+		  << value;
+	if(absCaloEta == 28) std::cout << std::endl;
 	else std::cout << "    ";
       }
     }
-    for(int absCaloEta = 1; absCaloEta <= 28; absCaloEta++) {
-      double linearizedHCalInput = h->et(hcalInput, absCaloEta, 1);
-      if(linearizedHCalInput != (h->et(hcalInput, absCaloEta, -1))) {
-	std::cerr << "L1TCaloLayer1LUTWriter - hcal scale factors are different for positive and negative eta ! :(" << std::endl;
-      }
-      // Use ecal = 0 to get hcal only energy but in RCT JetMET scale - should be 8-bit max
-      uint32_t value = (rctParameters_->JetMETTPGSum(0, linearizedHCalInput, absCaloEta) / rctParameters_->jetMETLSB());
-      if(value > 0xFF) {
-	value = 0xFF;
-      }
-      std::cout << std::dec << std::setw(3) << value;
-      if(absCaloEta == 28) std::cout << std::endl;
-      else std::cout << "   ";
-    }
   }
-  std::cout << "******* HCAL END ********" << std::endl;
+  std::cout << "============================================================================================================================================================================================================================================================================================" << std::endl;
 
 }
 
