@@ -45,6 +45,8 @@
 
 #include "CondFormats/DataRecord/interface/L1EmEtScaleRcd.h"
 
+#include "L1Trigger/L1TCaloLayer1/src/L1TCaloLayer1FetchLUTs.hh"
+
 //
 // class declaration
 //
@@ -58,17 +60,21 @@ public:
 
 
 private:
-  virtual void beginJob() override;
+
   virtual void analyze(const edm::Event&, const edm::EventSetup&) override;
-  virtual void endJob() override;
 
   // ----------member data ---------------------------
+
+  std::vector< std::vector< std::vector < uint32_t > > > ecalLUT;
+  std::vector< std::vector< std::vector < uint32_t > > > hcalLUT;
 
   bool verbose;
 
 };
 
 L1TCaloLayer1LUTWriter::L1TCaloLayer1LUTWriter(const edm::ParameterSet& iConfig) :
+  ecalLUT(28, std::vector< std::vector<uint32_t> >(2, std::vector<uint32_t>(256))),
+  hcalLUT(28, std::vector< std::vector<uint32_t> >(2, std::vector<uint32_t>(256))),
   verbose(iConfig.getUntrackedParameter<bool>("verbose")) {}
 
 L1TCaloLayer1LUTWriter::~L1TCaloLayer1LUTWriter() {}
@@ -81,23 +87,10 @@ L1TCaloLayer1LUTWriter::~L1TCaloLayer1LUTWriter() {}
 void
 L1TCaloLayer1LUTWriter::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
 {
-  using namespace edm;
 
-  // get rct parameters - these should contain Laura Dodd's tower-level scalefactors (ET, eta)
-
-  edm::ESHandle<L1RCTParameters> rctParameters;
-  iSetup.get<L1RCTParametersRcd>().get(rctParameters);
-  const L1RCTParameters* rctParameters_ = rctParameters.product();
-
-  // get energy scale to convert input from ECAL - this should be linear with LSB = 0.5 GeV
-  edm::ESHandle<L1CaloEcalScale> ecalScale;
-  iSetup.get<L1CaloEcalScaleRcd>().get(ecalScale);
-  const L1CaloEcalScale* e = ecalScale.product();
-      
-  // get energy scale to convert input from HCAL - this should be Landsberg's E to ET etc non-linear conversion factors
-  edm::ESHandle<L1CaloHcalScale> hcalScale;
-  iSetup.get<L1CaloHcalScaleRcd>().get(hcalScale);
-  const L1CaloHcalScale* h = hcalScale.product();
+  if(!L1TCaloLayer1FetchLUTs(iSetup, ecalLUT, hcalLUT)) {
+    std::cerr << "beginRun: failed to fetch LUTS" << std::endl;
+  }
 
   // Loop and write the ECAL LUT
   std::cout << "============================================================================================================================================================================================================================================================================================" << std::endl;
@@ -106,29 +99,12 @@ L1TCaloLayer1LUTWriter::analyze(const edm::Event& iEvent, const edm::EventSetup&
   for(uint32_t fb = 0; fb < 2; fb++) {
     for(uint32_t ecalInput = 0; ecalInput <= 0xFF; ecalInput++) {
       for(int absCaloEta = 1; absCaloEta <= 28; absCaloEta++) {
-	double linearizedECalInput = e->et(ecalInput, absCaloEta, 1);
-	if(linearizedECalInput != (e->et(ecalInput, absCaloEta, -1))) {
-	  std::cerr << "L1TCaloLayer1LUTWriter - ecal scale factors are different for positive and negative eta ! :(" << std::endl;
-	}
-	// Use hcal = 0 to get ecal only energy but in RCT JetMET scale - should be 8-bit max
-	uint32_t value = (rctParameters_->JetMETTPGSum(linearizedECalInput, 0, absCaloEta) / rctParameters_->jetMETLSB());
-	if(value > 0xFF) {
-	  value = 0xFF;
-	}
-	if(value == 0) {
-	  value = (1 << 11);
-	}
-	else {
-	  uint32_t et_log2 = ((uint32_t) log2(value)) & 0x7;
-	  value |= (et_log2 << 12);
-	}
-	value |= (fb << 10);
 	if(absCaloEta == 1) {
 	  std::cout << std::showbase << std::internal << std::setfill('0') << std::setw(5) << std::hex
 		    << (ecalInput | (fb << 8)) << "   ";
 	}
 	std::cout << std::showbase << std::internal << std::setfill('0') << std::setw(6) << std::hex
-		  << value;
+		  << ecalLUT[absCaloEta - 1][fb][ecalInput];
 	if(absCaloEta == 28) std::cout << std::endl;
 	else std::cout << "    ";
       }
@@ -143,29 +119,12 @@ L1TCaloLayer1LUTWriter::analyze(const edm::Event& iEvent, const edm::EventSetup&
   for(uint32_t fb = 0; fb < 2; fb++) {
     for(uint32_t hcalInput = 0; hcalInput <= 0xFF; hcalInput++) {
       for(int absCaloEta = 1; absCaloEta <= 28; absCaloEta++) {
-	double linearizedHCalInput = h->et(hcalInput, absCaloEta, 1);
-	if(linearizedHCalInput != (h->et(hcalInput, absCaloEta, -1))) {
-	  std::cerr << "L1TCaloLayer1LUTWriter - hcal scale factors are different for positive and negative eta ! :(" << std::endl;
-	}
-	// Use ecal = 0 to get hcal only energy but in RCT JetMET scale - should be 8-bit max
-	uint32_t value = (rctParameters_->JetMETTPGSum(0, linearizedHCalInput, absCaloEta) / rctParameters_->jetMETLSB());
-	if(value > 0xFF) {
-	  value = 0xFF;
-	}
-	if(value == 0) {
-	  value = (1 << 11);
-	}
-	else {
-	  uint32_t et_log2 = ((uint32_t) log2(value)) & 0x7;
-	  value |= (et_log2 << 12);
-	}
-	value |= (fb << 10);
 	if(absCaloEta == 1) {
 	  std::cout << std::showbase << std::internal << std::setfill('0') << std::setw(5) << std::hex
 		    << (hcalInput | (fb << 8)) << "   ";
 	}
 	std::cout << std::showbase << std::internal << std::setfill('0') << std::setw(6) << std::hex
-		  << value;
+		  << hcalLUT[absCaloEta - 1][fb][hcalInput];
 	if(absCaloEta == 28) std::cout << std::endl;
 	else std::cout << "    ";
       }
@@ -176,21 +135,24 @@ L1TCaloLayer1LUTWriter::analyze(const edm::Event& iEvent, const edm::EventSetup&
 }
 
 // ------------ method called once each job just before starting event loop  ------------
-void 
-L1TCaloLayer1LUTWriter::beginJob()
-{
-}
+/*
+  void 
+  L1TCaloLayer1LUTWriter::beginJob()
+  {
+  }
+*/
 
 // ------------ method called once each job just after ending the event loop  ------------
-void 
-L1TCaloLayer1LUTWriter::endJob() 
-{
-}
-
+/*
+  void 
+  L1TCaloLayer1LUTWriter::endJob() 
+  {
+  }
+*/
 // ------------ method called when starting to processes a run  ------------
 /*
   void 
-  L1TCaloLayer1LUTWriter::beginRun(edm::Run const&, edm::EventSetup const&)
+  L1TCaloLayer1LUTWriter::beginRun(const edm::Run& iRun, const edm::EventSetup& iSetup)
   {
   }
 */
