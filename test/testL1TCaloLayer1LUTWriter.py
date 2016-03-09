@@ -4,7 +4,7 @@ from FWCore.ParameterSet.VarParsing import VarParsing
 
 process = cms.Process("L1TCaloLayer1LUTWriter")
 
-import EventFilter.L1TCaloLayer1RawToDigi.util as util
+import EventFilter.L1TXRawToDigi.util as util
 
 from FWCore.ParameterSet.VarParsing import VarParsing
 
@@ -38,9 +38,9 @@ process.load("FWCore.MessageService.MessageLogger_cfi")
 
 process.load('L1Trigger.L1TCaloLayer1Spy.l1tCaloLayer1LUTWriter_cfi')
 
-process.load('Configuration/StandardSequences/FrontierConditions_GlobalTag_condDBv2_cff')
-process.GlobalTag.globaltag = '74X_dataRun2_Express_v1'
-process.es_prefer_GlobalTag = cms.ESPrefer('PoolDBESSource', 'GlobalTag')
+process.load('Configuration.StandardSequences.FrontierConditions_GlobalTag_cff')
+from Configuration.AlCa.GlobalTag import GlobalTag
+process.GlobalTag = GlobalTag(process.GlobalTag, 'auto:run2_data', '')
 
 process.source = cms.Source("PoolSource",
     fileNames = cms.untracked.vstring(inputFiles)
