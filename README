@@ -28,14 +28,32 @@ whereever you have access to AFS with CERN tokens.
 Typically this package is run along with the emulator so that we
 can make Spy digis to emulated digis comparison to validate the
 Layer-1 hardware.  Check that out from L1Trigger/L1TCaloLayer1
+following Mike Mulhearn's recipe documented in cms-l1t-offline
+repository.  Currently slightly modified version of it is:
 
-To debug the Spy unpacker (testL1TCaloLayer1Spy.py) and emulator
-(testL1TCaloLayer1EmulatorWithSpy.py), there are several options
+```bash
+cmsrel CMSSW_8_0_2
+cd CMSSW_8_0_2/src
+cmsenv
+git cms-init
+git remote add cms-l1t-offline git@github.com:cms-l1t-offline/cmssw.git
+git fetch cms-l1t-offline
+git cms-merge-topic dasu-updates-$CMSSW_VERSION
+git cms-addpkg L1Trigger/L1TCommon
+ln -s /afs/cern.ch/user/d/dasu/public/UCT2016Layer1CTP7Client ./
+export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:/afs/cern.ch/user/d/dasu/public/UCT2016Layer1CTP7Client/:/afs/cern.ch/user/d/dasu/public/UCT2016Layer1CTP7Client/rpcsvc_client_dev/
+scram b -j 8
+```
+
+To debug the Spy unpacker (L1TCaloLayer1Spy/testL1TCaloLayer1Spy.py) and emulator
+(L1TCaloLayer1/testL1TCaloLayer1EmulatorWithSpy.py), there are several options
 for getting input.  You can use pre-captured files, pre-determined
 patterns or ethernet captures.  You can run using the syntax:
 
+```bash
 cmsRun testL1TCaloLayer1EmulatorWithSpy.py setupString=patterns:DecreasingEM,IncreasingHD
 cmsRun testL1TCaloLayer1EmulatorWithSpy.py setupString=patterns:ConstantEM=0xA7,DecreasingHD
+```
 
 etc.  The keywords IncreasingXX, DecreasingXX, ConstantXX, ConstantXX=0xAB 
 where XX is EM or HD and 0xAB can be any byte-sized hex-number, can be
@@ -43,11 +61,16 @@ mixed to get various patterns.  Pattern string is case sensitive!
 
 The syntax for pre-captured files is:
 
+```bash
 cmsRun testL1TCaloLayer1EmulatorWithSpy.py setupString=captures:/data/dasu/Layer1ZeroBiasCaptureData/r260490_2 maxEvents=162
+```
 
 The syntax for ethernet captures is:
 
+```bash
 cmsRun L1Trigger/L1TCaloLayer1/test/testL1TCaloLayer1EmulatorWithSpy.py setupString=ethernet:PhiMapFile.xml maxEvents=16200
+```
+
 where PhiMapFile.xml is path to an XML file specifying CTP7 card to TCP/IP address mapping.
 
 In case of problems, report to : dasu@hep.wisc.edu
