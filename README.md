@@ -44,8 +44,9 @@ git remote add cms-l1t-offline git@github.com:cms-l1t-offline/cmssw.git
 git fetch cms-l1t-offline
 git cms-merge-topic dasu-updates-$CMSSW_VERSION
 git cms-addpkg L1Trigger/L1TCommon
+cd L1Trigger
 git clone git@github.com:SridharaDasu/L1TCaloLayer1Spy.git
-ln -s /afs/cern.ch/user/d/dasu/public/UCT2016Layer1CTP7Client ./
+cd ..
 export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:/afs/cern.ch/user/d/dasu/public/UCT2016Layer1CTP7Client/:/afs/cern.ch/user/d/dasu/public/UCT2016Layer1CTP7Client/rpcsvc_client_dev/
 scram b -j 8
 ```
