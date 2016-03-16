@@ -67,6 +67,7 @@ private:
 
   std::vector< std::vector< std::vector < uint32_t > > > ecalLUT;
   std::vector< std::vector< std::vector < uint32_t > > > hcalLUT;
+  std::vector< std::vector< uint32_t > > hfLUT;
 
   bool verbose;
 
@@ -75,6 +76,7 @@ private:
 L1TCaloLayer1LUTWriter::L1TCaloLayer1LUTWriter(const edm::ParameterSet& iConfig) :
   ecalLUT(28, std::vector< std::vector<uint32_t> >(2, std::vector<uint32_t>(256))),
   hcalLUT(28, std::vector< std::vector<uint32_t> >(2, std::vector<uint32_t>(256))),
+  hfLUT(12, std::vector< uint32_t >(256)),
   verbose(iConfig.getUntrackedParameter<bool>("verbose")) {}
 
 L1TCaloLayer1LUTWriter::~L1TCaloLayer1LUTWriter() {}
@@ -88,7 +90,7 @@ void
 L1TCaloLayer1LUTWriter::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
 {
 
-  if(!L1TCaloLayer1FetchLUTs(iSetup, ecalLUT, hcalLUT)) {
+  if(!L1TCaloLayer1FetchLUTs(iSetup, ecalLUT, hcalLUT, hfLUT)) {
     std::cerr << "beginRun: failed to fetch LUTS" << std::endl;
   }
 

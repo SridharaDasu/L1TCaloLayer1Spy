@@ -2,52 +2,62 @@ import FWCore.ParameterSet.Config as cms
 
 from FWCore.ParameterSet.VarParsing import VarParsing
 
-process = cms.Process("L1TCaloLayer1LUTWriter")
-
-import EventFilter.L1TXRawToDigi.util as util
-
-from FWCore.ParameterSet.VarParsing import VarParsing
+from Configuration.StandardSequences.Eras import eras
+process = cms.Process("L1TCaloLayer1LUTWriter",eras.Run2_2016)
 
 options = VarParsing()
 options.register('runNumber', 260627, VarParsing.multiplicity.singleton, VarParsing.varType.int, 'Run to analyze')
-options.register('lumis', '1-max', VarParsing.multiplicity.singleton, VarParsing.varType.string, 'Lumis')
-options.register('dataStream', '/ExpressPhysics/Run2015D-Express-v4/FEVT', VarParsing.multiplicity.singleton, VarParsing.varType.string, 'Dataset to look for run in')
-options.register('inputFiles', [], VarParsing.multiplicity.list, VarParsing.varType.string, 'Manual file list input, will query DAS if empty')
-options.register('inputFileList', '', VarParsing.multiplicity.singleton, VarParsing.varType.string, 'Manual file list input, will query DAS if empty')
-options.register('useORCON', False, VarParsing.multiplicity.singleton, VarParsing.varType.bool, 'Use ORCON for conditions.  This is necessary for very recent runs where conditions have not propogated to Frontier')
 options.parseArguments()
 
-def formatLumis(lumistring, run) :
-    lumis = (lrange.split('-') for lrange in lumistring.split(','))
-    runlumis = (['%d:%s' % (run,lumi) for lumi in lrange] for lrange in lumis)
-    return ['-'.join(l) for l in runlumis]
-
-print 'Getting files for run %d...' % options.runNumber
-if len(options.inputFiles) is 0 and options.inputFileList is '' :
-    inputFiles = util.getFilesForRun(options.runNumber, options.dataStream)
-elif len(options.inputFileList) > 0 :
-    with open(options.inputFileList) as f :
-        inputFiles = list((line.strip() for line in f))
-else :
-    inputFiles = cms.untracked.vstring(options.inputFiles)
-if len(inputFiles) is 0 :
-    raise Exception('No files found for dataset %s run %d' % (options.dataStream, options.runNumber))
-print 'Ok, time to analyze'
-
-process.load("FWCore.MessageService.MessageLogger_cfi")
-
-process.load('L1Trigger.L1TCaloLayer1Spy.l1tCaloLayer1LUTWriter_cfi')
-
+# import of standard configurations
+process.load('Configuration.StandardSequences.Services_cff')
+process.load('SimGeneral.HepPDTESSource.pythiapdt_cfi')
+process.load('FWCore.MessageService.MessageLogger_cfi')
+process.load('Configuration.EventContent.EventContent_cff')
+process.load('Configuration.Geometry.GeometryExtended2016Reco_cff')
+process.load('Configuration.StandardSequences.MagneticField_AutoFromDBCurrent_cff')
+process.load('Configuration.StandardSequences.RawToDigi_Data_cff')
+process.load('Configuration.StandardSequences.EndOfProcess_cff')
 process.load('Configuration.StandardSequences.FrontierConditions_GlobalTag_cff')
 from Configuration.AlCa.GlobalTag import GlobalTag
-process.GlobalTag = GlobalTag(process.GlobalTag, 'auto:run2_data', '')
+#process.GlobalTag = GlobalTag(process.GlobalTag, 'auto:run2_data', '')
+process.GlobalTag = GlobalTag(process.GlobalTag, '80X_dataRun2_HLT_v6', '')
 
-process.source = cms.Source("PoolSource",
-    fileNames = cms.untracked.vstring(inputFiles)
-#  fileNames = cms.untracked.vstring('file:/data/dasu/0EFD41DE-866B-E511-9644-02163E0143CE.root')
+process.source = cms.Source('EmptySource',
+    firstRun = cms.untracked.uint32(options.runNumber)
 )
 
 # Writes LUT for the only event to be processed - ignores data itself.
 process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(1) )
 
+process.load('L1Trigger.L1TCaloLayer1Spy.l1tCaloLayer1LUTWriter_cfi')
+
 process.p = cms.Path(process.l1tCaloLayer1LUTWriter)
+
+process.schedule = cms.Schedule(process.p)
+
+# customisation of the process.
+
+# Automatic addition of the customisation function from L1Trigger.Configuration.customiseReEmul
+from L1Trigger.Configuration.customiseReEmul import L1TReEmulFromRAW,L1TEventSetupForHF1x1TPs 
+
+#call to customisation function L1TReEmulFromRAW imported from L1Trigger.Configuration.customiseReEmul
+process = L1TReEmulFromRAW(process)
+
+#call to customisation function L1TEventSetupForHF1x1TPs imported from L1Trigger.Configuration.customiseReEmul
+process = L1TEventSetupForHF1x1TPs(process)
+
+# Automatic addition of the customisation function from L1Trigger.L1TNtuples.customiseL1Ntuple
+#from L1Trigger.L1TNtuples.customiseL1Ntuple import L1NtupleAODEMU 
+
+#call to customisation function L1NtupleAODEMU imported from L1Trigger.L1TNtuples.customiseL1Ntuple
+#process = L1NtupleAODEMU(process)
+
+# Automatic addition of the customisation function from L1Trigger.Configuration.customiseUtils
+#from L1Trigger.Configuration.customiseUtils import L1TTurnOffUnpackStage2GtGmtAndCalo 
+
+#call to customisation function L1TTurnOffUnpackStage2GtGmtAndCalo imported from L1Trigger.Configuration.customiseUtils
+#process = L1TTurnOffUnpackStage2GtGmtAndCalo(process)
+
+# End of customisation functions
+
