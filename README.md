@@ -4,9 +4,11 @@ This package contains an unusual CMSSW producer, which uses TCP/IP
 client to connect to the server running on CTP7 embedded linux systems
 and creates raw data objects for input and output of CMS Level-1
 Calorimeter Layer-1 System, i.e.,
+```bash
   produces<HcalTrigPrimDigiCollection>();
   produces<EcalTrigPrimDigiCollection>();
   produces<CaloTowerBxCollection>();
+```
 
 When run on machines with P5 online environment it can obtain a contiguous
 set of zerobias crossings being processed by the Layer-1 system.  These
@@ -18,7 +20,9 @@ using the online cactus SVN repository and install it somewhere.  Note
 that this depends on google protobuf-lite, which needs to have been 
 installed on the build machine.
 
+```bash
 svn co svn+ssh://svn.cern.ch/reps/cactus/trunk/cactusprojects/calol1/extern/UCT2016Layer1CTP7Client UCT2016Layer1CTP7Client
+```
 
 For your convenience the client is currently installed on CERN AFS
 in /afs/cern.ch/user/d/dasu/public and the directory trees are 
