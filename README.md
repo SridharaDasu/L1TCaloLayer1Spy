@@ -68,7 +68,7 @@ mixed to get various patterns.  Pattern string is case sensitive!
 The syntax for pre-captured files is:
 
 ```bash
-cmsRun testL1TCaloLayer1EmulatorWithSpy.py setupString=captures:/data/dasu/Layer1ZeroBiasCaptureData/r260490_2 maxEvents=162
+cmsRun testL1TCaloLayer1EmulatorWithSpy.py setupString=captures:/data/dasu/Layer1ZeroBiasCaptureData/r266523_1
 ```
 
 The syntax for ethernet captures is:
