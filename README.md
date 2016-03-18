@@ -47,7 +47,8 @@ git cms-addpkg L1Trigger/L1TCommon
 cd L1Trigger
 git clone git@github.com:SridharaDasu/L1TCaloLayer1Spy.git
 cd ..
-export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:/afs/cern.ch/user/d/dasu/public/UCT2016Layer1CTP7Client/:/afs/cern.ch/user/d/dasu/public/UCT2016Layer1CTP7Client/rpcsvc_client_dev/
+scram setup L1Trigger/L1TCaloLayer1Spy/tool/ctp7client.xml
+scram setup L1Trigger/L1TCaloLayer1Spy/tool/wiscrpcsvc.xml
 scram b -j 8
 ```
 
