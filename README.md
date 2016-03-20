@@ -24,9 +24,10 @@ installed on the build machine.
 svn co svn+ssh://svn.cern.ch/reps/cactus/trunk/cactusprojects/calol1/extern/UCT2016Layer1CTP7Client UCT2016Layer1CTP7Client
 ```
 
-For your convenience the client is currently installed on CERN AFS
-in /afs/cern.ch/user/d/dasu/public and the directory trees are 
-accessible to all system:anyuser.  So, you should be able to build 
+If you don't have access to online cactus svn, you can take stuff
+from my area.  For your convenience the client is currently installed 
+on CERN AFS in /afs/cern.ch/user/d/dasu/public and the directory trees 
+are accessible to all system:anyuser.  So, you should be able to build 
 whereever you have access to AFS with CERN tokens.
 
 Typically this package is run along with the emulator so that we
@@ -37,17 +38,21 @@ repository.  Currently slightly modified version of it is:
 
 ```bash
 cmsrel CMSSW_8_0_2
-cd CMSSW_8_0_2/src
+cd CMSSW_8_0_2
 cmsenv
+cd $CMSSW_RELEASE/extern
+svn co svn+ssh://svn.cern.ch/reps/cactus/trunk/cactusprojects/calol1/extern/UCT2016Layer1CTP7Client UCT2016Layer1CTP7Client
+cd UCT2016Layer1CTP7Client
+make install
+cd $CMSSW_RELEASE/src
 git cms-init
 git remote add cms-l1t-offline git@github.com:cms-l1t-offline/cmssw.git
 git fetch cms-l1t-offline
 git cms-merge-topic cms-l1t-offline:dasu-updates-$CMSSW_VERSION
 git cms-addpkg L1Trigger/L1TCommon
-cd L1Trigger
+cd $CMSSW_RELEASE/src/L1Trigger
 git clone git@github.com:SridharaDasu/L1TCaloLayer1Spy.git
-cd ..
-export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:/afs/cern.ch/user/d/dasu/public/UCT2016Layer1CTP7Client/:/afs/cern.ch/user/d/dasu/public/UCT2016Layer1CTP7Client/rpcsvc_client_dev/
+cd $CMSSW_RELEASE/src
 scram b -j 8
 ```
 
