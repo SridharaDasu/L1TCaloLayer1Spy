@@ -36,28 +36,12 @@ process.p = cms.Path(process.l1tCaloLayer1LUTWriter)
 
 process.schedule = cms.Schedule(process.p)
 
-# customisation of the process.
-
-# Automatic addition of the customisation function from L1Trigger.Configuration.customiseReEmul
-from L1Trigger.Configuration.customiseReEmul import L1TReEmulFromRAW,L1TEventSetupForHF1x1TPs 
-
-#call to customisation function L1TReEmulFromRAW imported from L1Trigger.Configuration.customiseReEmul
-process = L1TReEmulFromRAW(process)
-
-#call to customisation function L1TEventSetupForHF1x1TPs imported from L1Trigger.Configuration.customiseReEmul
+# HF 1x1 TPs need special ES source as of 2016/03/21
+from L1Trigger.Configuration.customiseReEmul import L1TEventSetupForHF1x1TPs
 process = L1TEventSetupForHF1x1TPs(process)
 
-# Automatic addition of the customisation function from L1Trigger.L1TNtuples.customiseL1Ntuple
-#from L1Trigger.L1TNtuples.customiseL1Ntuple import L1NtupleAODEMU 
+# To get L1 CaloParams, until in GT
+process.load('L1Trigger.L1TCalorimeter.caloStage2Params_cfi')
 
-#call to customisation function L1NtupleAODEMU imported from L1Trigger.L1TNtuples.customiseL1Ntuple
-#process = L1NtupleAODEMU(process)
-
-# Automatic addition of the customisation function from L1Trigger.Configuration.customiseUtils
-#from L1Trigger.Configuration.customiseUtils import L1TTurnOffUnpackStage2GtGmtAndCalo 
-
-#call to customisation function L1TTurnOffUnpackStage2GtGmtAndCalo imported from L1Trigger.Configuration.customiseUtils
-#process = L1TTurnOffUnpackStage2GtGmtAndCalo(process)
-
-# End of customisation functions
-
+# To get CaloTPGTranscoder
+process.load('SimCalorimetry.HcalTrigPrimProducers.hcaltpdigi_cff')
