@@ -24,9 +24,10 @@ installed on the build machine.
 svn co svn+ssh://svn.cern.ch/reps/cactus/trunk/cactusprojects/calol1/extern/UCT2016Layer1CTP7Client UCT2016Layer1CTP7Client
 ```
 
-For your convenience the client is currently installed on CERN AFS
-in /afs/cern.ch/user/d/dasu/public and the directory trees are 
-accessible to all system:anyuser.  So, you should be able to build 
+If you don't have access to online cactus svn, you can take stuff
+from my area.  For your convenience the client is currently installed 
+on CERN AFS in /afs/cern.ch/user/d/dasu/public and the directory trees 
+are accessible to all system:anyuser.  So, you should be able to build 
 whereever you have access to AFS with CERN tokens.
 
 Typically this package is run along with the emulator so that we
@@ -36,6 +37,11 @@ following Mike Mulhearn's recipe documented in cms-l1t-offline
 repository.  Currently slightly modified version of it is:
 
 ```bash
+svn co svn+ssh://svn.cern.ch/reps/cactus/trunk/cactusprojects/calol1/extern/UCT2016Layer1CTP7Client UCT2016Layer1CTP7Client
+cd UCT2016Layer1CTP7Client
+make
+cd ..
+# --- cms-l1t-offline recipe start
 cmsrel CMSSW_8_0_2
 cd CMSSW_8_0_2/src
 cmsenv
@@ -44,7 +50,8 @@ git remote add cms-l1t-offline git@github.com:cms-l1t-offline/cmssw.git
 git fetch cms-l1t-offline
 git cms-merge-topic cms-l1t-offline:dasu-updates-$CMSSW_VERSION
 git cms-addpkg L1Trigger/L1TCommon
-cd L1Trigger
+# --- cms-l1t-offline recipe end
+cd $CMSSW_BASE/src/L1Trigger
 git clone git@github.com:SridharaDasu/L1TCaloLayer1Spy.git
 cd ..
 scram setup L1Trigger/L1TCaloLayer1Spy/tool/ctp7client.xml
@@ -69,7 +76,7 @@ mixed to get various patterns.  Pattern string is case sensitive!
 The syntax for pre-captured files is:
 
 ```bash
-cmsRun testL1TCaloLayer1EmulatorWithSpy.py setupString=captures:/data/dasu/Layer1ZeroBiasCaptureData/r266523_1
+cmsRun testL1TCaloLayer1EmulatorWithSpy.py setupString=captures:/data/dasu/Layer1ZeroBiasCaptureData/TT_Feb22_252Events_v1
 ```
 
 The syntax for ethernet captures is:

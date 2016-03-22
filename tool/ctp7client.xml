@@ -1,8 +1,8 @@
 <tool name="ctp7client" version="">
-  <info url="??"/>
+  <info url="svn+ssh://svn.cern.ch/reps/cactus/trunk/cactusprojects/calol1/extern/UCT2016Layer1CTP7Client"/>
   <lib name="UCT2016Layer1CTP7"/>
   <client>
-    <environment name="CTP7CLIENT_BASE" default="/afs/cern.ch/user/d/dasu/public/UCT2016Layer1CTP7Client"/>
+    <environment name="CTP7CLIENT_BASE" default="$CMSSW_BASE/../UCT2016Layer1CTP7Client"/>
     <environment name="LIBDIR" default="$CTP7CLIENT_BASE"/>
     <environment name="INCLUDE" default="$CTP7CLIENT_BASE"/>
   </client>

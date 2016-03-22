@@ -1,8 +1,8 @@
 <tool name="wiscrpcsvc" version="">
-  <info url="??"/>
+  <info url="svn+ssh://svn.cern.ch/reps/cactus/trunk/cactusprojects/calol1/extern/UCT2016Layer1CTP7Client"/>
   <lib name="wiscrpcsvc"/>
   <client>
-    <environment name="WISCRPC_BASE" default="/afs/cern.ch/user/d/dasu/public/UCT2016Layer1CTP7Client/rpcsvc_client_dev"/>
+    <environment name="WISCRPC_BASE" default="$CMSSW_BASE/../UCT2016Layer1CTP7Client/rpcsvc_client_dev"/>
     <environment name="LIBDIR" default="$WISCRPC_BASE"/>
     <environment name="INCLUDE" default="$WISCRPC_BASE"/>
   </client>
