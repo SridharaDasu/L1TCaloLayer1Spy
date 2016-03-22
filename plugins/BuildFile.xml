@@ -2,13 +2,13 @@
 <use name="FWCore/PluginManager"/>
 <use name="FWCore/ParameterSet"/>
 <use name="FWCore/MessageLogger"/>
+<use name="FWCore/ServiceRegistry"/>
+<use name="FWCore/Sources"/>
 <use name="DataFormats/HcalDigi"/>
 <use name="DataFormats/EcalDigi"/>
 <use name="DataFormats/L1TCalorimeter"/>
 <use name="CondFormats/L1TObjects"/>
 <use name="CondFormats/DataRecord"/>
 <use name="L1Trigger/L1TCaloLayer1"/>
-<flags CXXFLAGS="-I/afs/cern.ch/user/d/dasu/public/UCT2016Layer1CTP7Client -I/afs/cern.ch/user/d/dasu/public/UCT2016Layer1CTP7Client/rpcsvc_client_dev"/>
-<flags LDFLAGS="-L/afs/cern.ch/user/d/dasu/public/UCT2016Layer1CTP7Client -lUCT2016Layer1CTP7 -L/afs/cern.ch/user/d/dasu/public/UCT2016Layer1CTP7Client/rpcsvc_client_dev -lwiscrpcsvc"/>
-<flags EDM_LDFLAGS="-L/afs/cern.ch/user/d/dasu/public/UCT2016Layer1CTP7Client -lUCT2016Layer1CTP7 -L/afs/cern.ch/user/d/dasu/public/UCT2016Layer1CTP7Client/rpcsvc_client_dev -lwiscrpcsvc"/>
+<use name="ctp7client"/>
 <flags EDM_PLUGIN="1"/>

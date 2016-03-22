@@ -37,22 +37,26 @@ following Mike Mulhearn's recipe documented in cms-l1t-offline
 repository.  Currently slightly modified version of it is:
 
 ```bash
+# --- cms-l1t-offline recipe start
 cmsrel CMSSW_8_0_2
-cd CMSSW_8_0_2
+cd CMSSW_8_0_2/src
 cmsenv
-cd $CMSSW_RELEASE/extern
-svn co svn+ssh://svn.cern.ch/reps/cactus/trunk/cactusprojects/calol1/extern/UCT2016Layer1CTP7Client UCT2016Layer1CTP7Client
-cd UCT2016Layer1CTP7Client
-make install
-cd $CMSSW_RELEASE/src
 git cms-init
 git remote add cms-l1t-offline git@github.com:cms-l1t-offline/cmssw.git
 git fetch cms-l1t-offline
-git cms-merge-topic cms-l1t-offline:dasu-updates-$CMSSW_VERSION
+git cms-merge-topic -u cms-l1t-offline:l1t-integration-v15.0-layer1
 git cms-addpkg L1Trigger/L1TCommon
-cd $CMSSW_RELEASE/src/L1Trigger
+# --- cms-l1t-offline recipe end
+cd $CMSSW_BASE/..
+svn co svn+ssh://svn.cern.ch/reps/cactus/trunk/cactusprojects/calol1/extern/UCT2016Layer1CTP7Client UCT2016Layer1CTP7Client
+# We have to make while in cmssw environment to get right version of protobuf
+cd UCT2016Layer1CTP7Client
+make
+cd $CMSSW_BASE/src/L1Trigger
 git clone git@github.com:SridharaDasu/L1TCaloLayer1Spy.git
-cd $CMSSW_RELEASE/src
+cd ..
+scram setup L1Trigger/L1TCaloLayer1Spy/tool/ctp7client.xml
+scram setup L1Trigger/L1TCaloLayer1Spy/tool/wiscrpcsvc.xml
 scram b -j 8
 ```
 

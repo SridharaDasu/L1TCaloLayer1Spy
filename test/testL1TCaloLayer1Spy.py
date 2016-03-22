@@ -4,6 +4,7 @@ from FWCore.ParameterSet.VarParsing import VarParsing
 
 options = VarParsing()
 options.register('setupString', "captures:/data/dasu/Layer1ZeroBiasCaptureData/r260490_1", VarParsing.multiplicity.singleton, VarParsing.varType.string, 'L1TCaloLayer1Spy setupString')
+options.register('outputFile', "l1tCaloLayer1Spy.root", VarParsing.multiplicity.singleton, VarParsing.varType.string, 'Output file')
 options.parseArguments()
 
 process = cms.Process("L1TCaloLayer1Spy")
@@ -22,7 +23,7 @@ process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(162) )
 process.source = cms.Source("EmptySource")
 
 process.out = cms.OutputModule("PoolOutputModule",
-    fileName = cms.untracked.string('/data/dasu/l1tCaloLayer1Spy.root'),
+    fileName = cms.untracked.string(options.outputFile),
     outputCommands = cms.untracked.vstring('keep *')
 )
 
