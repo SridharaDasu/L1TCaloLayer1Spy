@@ -250,7 +250,7 @@ L1TCaloLayer1LUTWriter::analyze(const edm::Event& iEvent, const edm::EventSetup&
       for(int iEta=1; iEta<=28; ++iEta) {
         row.push_back(ecalLUT[iEta-1][fb][ecalInput]);
       }
-      MD5_Update(&md5context, row.data(), row.size()*sizeof(uint32_t));
+      MD5_Update(&md5context, &row[1], (row.size()-1)*sizeof(uint32_t));
       if ( !writeSWATCHTableRow(row) ) return;
     }
   }
@@ -286,7 +286,7 @@ L1TCaloLayer1LUTWriter::analyze(const edm::Event& iEvent, const edm::EventSetup&
       for(int iEta=1; iEta<=28; ++iEta) {
         row.push_back(hcalLUT[iEta-1][fb][hcalInput]);
       }
-      MD5_Update(&md5context, row.data(), row.size()*sizeof(uint32_t));
+      MD5_Update(&md5context, &row[1], (row.size()-1)*sizeof(uint32_t));
       if ( !writeSWATCHTableRow(row) ) return;
     }
   }
@@ -322,7 +322,7 @@ L1TCaloLayer1LUTWriter::analyze(const edm::Event& iEvent, const edm::EventSetup&
       for(int hfEta=0; hfEta<12; ++hfEta) {
         row.push_back(hfLUT[hfEta][hfInput]);
       }
-      MD5_Update(&md5context, row.data(), row.size()*sizeof(uint32_t));
+      MD5_Update(&md5context, &row[1], (row.size()-1)*sizeof(uint32_t));
       if ( !writeSWATCHTableRow(row) ) return;
     }
   }
