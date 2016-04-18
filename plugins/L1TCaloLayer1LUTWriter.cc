@@ -25,7 +25,7 @@
 
 #include <libxml/encoding.h>
 #include <libxml/xmlwriter.h>
-
+#include <openssl/md5.h>
 
 // user include files
 #include "FWCore/Framework/interface/Frameworkfwd.h"
@@ -140,7 +140,7 @@ L1TCaloLayer1LUTWriter::writeSWATCHTableRow(std::vector<uint32_t> vect)
 {
   std::stringstream output;
   for(auto it=vect.begin(); it!=vect.end(); ++it) {
-    output << std::showbase << std::internal << std::setfill('0') << std::setw(7) << std::hex << *it;
+    output << std::showbase << std::internal << std::setfill('0') << std::setw(6) << std::hex << *it;
     if ( it != vect.end()-1 ) {
       output << ", ";
     }
@@ -221,6 +221,9 @@ L1TCaloLayer1LUTWriter::analyze(const edm::Event& iEvent, const edm::EventSetup&
   if ( !writeSWATCHVector("layer1HFScaleFactors", caloParams.layer1HFScaleFactors()) ) return;
   if ( !writeXMLParam("towerLsbSum", "float", std::to_string(caloParams.towerLsbSum())) ) return;
 
+  // We will checksum the LUT contents and put it at the end
+  MD5_CTX md5context;
+  MD5_Init(&md5context);
 
   // Loop and write the ECAL LUT
   // <param id="ECALLUT" type="table">
@@ -229,7 +232,7 @@ L1TCaloLayer1LUTWriter::analyze(const edm::Event& iEvent, const edm::EventSetup&
   if ( !rcWrap(xmlTextWriterWriteAttribute(writer_, BAD_CAST "type", BAD_CAST "table")) ) return;
 
   // <columns>
-  const char * ecal_columns{"Input, ECAL_01, ECAL_02, ECAL_03, ECAL_04, ECAL_05, ECAL-06, ECAL_07, ECAL-08, ECAL_09, ECAL_10, ECAL_11, ECAL_12, ECAL_13, ECAL_14, ECAL_15, ECAL_16, ECAL_17, ECAL-18, ECAL_19, ECAL_20, ECAL_21, ECAL_22, ECAL_23, ECAL_24, ECAL_25, ECAL_26, ECAL_27, ECAL_28"};
+  const char * ecal_columns{"Input, 01, 02, 03, 04, 05, 06, 07, 08, 09, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28"};
   if ( !rcWrap(xmlTextWriterWriteElement(writer_, BAD_CAST "columns", BAD_CAST ecal_columns)) ) return;
 
   // <types>
@@ -247,6 +250,7 @@ L1TCaloLayer1LUTWriter::analyze(const edm::Event& iEvent, const edm::EventSetup&
       for(int iEta=1; iEta<=28; ++iEta) {
         row.push_back(ecalLUT[iEta-1][fb][ecalInput]);
       }
+      MD5_Update(&md5context, row.data(), row.size()*sizeof(uint32_t));
       if ( !writeSWATCHTableRow(row) ) return;
     }
   }
@@ -264,7 +268,7 @@ L1TCaloLayer1LUTWriter::analyze(const edm::Event& iEvent, const edm::EventSetup&
   if ( !rcWrap(xmlTextWriterWriteAttribute(writer_, BAD_CAST "type", BAD_CAST "table")) ) return;
 
   // <columns>
-  const char * hcal_columns{"Input, HCAL_01, HCAL_02, HCAL_03, HCAL_04, HCAL_05, HCAL-06, HCAL_07, HCAL-08, HCAL_09, HCAL_10, HCAL_11, HCAL_12, HCAL_13, HCAL_14, HCAL_15, HCAL_16, HCAL_17, HCAL-18, HCAL_19, HCAL_20, HCAL_21, HCAL_22, HCAL_23, HCAL_24, HCAL_25, HCAL_26, HCAL_27, HCAL_28"};
+  const char * hcal_columns{"Input, 01, 02, 03, 04, 05, 06, 07, 08, 09, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28"};
   if ( !rcWrap(xmlTextWriterWriteElement(writer_, BAD_CAST "columns", BAD_CAST hcal_columns)) ) return;
 
   // <types>
@@ -282,6 +286,7 @@ L1TCaloLayer1LUTWriter::analyze(const edm::Event& iEvent, const edm::EventSetup&
       for(int iEta=1; iEta<=28; ++iEta) {
         row.push_back(hcalLUT[iEta-1][fb][hcalInput]);
       }
+      MD5_Update(&md5context, row.data(), row.size()*sizeof(uint32_t));
       if ( !writeSWATCHTableRow(row) ) return;
     }
   }
@@ -299,7 +304,7 @@ L1TCaloLayer1LUTWriter::analyze(const edm::Event& iEvent, const edm::EventSetup&
   if ( !rcWrap(xmlTextWriterWriteAttribute(writer_, BAD_CAST "type", BAD_CAST "table")) ) return;
 
   // <columns>
-  const char * hf_columns{"Input, HF_30, HF_31, HF_32, HF_33, HF_34, HF_35, HF_36, HF_37, HF_38, HF_39, HF_40, HF_41"};
+  const char * hf_columns{"Input, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41"};
   if ( !rcWrap(xmlTextWriterWriteElement(writer_, BAD_CAST "columns", BAD_CAST hf_columns)) ) return;
 
   // <types>
@@ -317,6 +322,7 @@ L1TCaloLayer1LUTWriter::analyze(const edm::Event& iEvent, const edm::EventSetup&
       for(int hfEta=0; hfEta<12; ++hfEta) {
         row.push_back(hfLUT[hfEta][hfInput]);
       }
+      MD5_Update(&md5context, row.data(), row.size()*sizeof(uint32_t));
       if ( !writeSWATCHTableRow(row) ) return;
     }
   }
@@ -325,6 +331,16 @@ L1TCaloLayer1LUTWriter::analyze(const edm::Event& iEvent, const edm::EventSetup&
   if ( !rcWrap(xmlTextWriterEndElement(writer_)) ) return;
   // </param>
   if ( !rcWrap(xmlTextWriterEndElement(writer_)) ) return;
+
+
+  // Now to write the checksum
+  unsigned char checksum[MD5_DIGEST_LENGTH];
+  MD5_Final(checksum, &md5context);
+  std::stringstream checksumString;
+  for(size_t i=0; i<MD5_DIGEST_LENGTH; ++i) {
+    checksumString << std::hex << static_cast<unsigned int>(checksum[i]);
+  }
+  if ( !writeXMLParam("md5checksum", "string", checksumString.str()) ) return;
 
 
   // Closes all open elements recursively for us

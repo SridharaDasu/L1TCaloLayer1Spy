@@ -10,6 +10,7 @@
 <use name="CondFormats/L1TObjects"/>
 <use name="CondFormats/DataRecord"/>
 <use name="L1Trigger/L1TCaloLayer1"/>
+<use name="openssl"/>
 <use name="libxml2"/>
 <use name="ctp7client"/>
 <flags EDM_PLUGIN="1"/>
