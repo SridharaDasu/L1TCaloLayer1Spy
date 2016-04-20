@@ -6,7 +6,7 @@ from Configuration.StandardSequences.Eras import eras
 process = cms.Process("L1TCaloLayer1LUTWriter",eras.Run2_2016)
 
 options = VarParsing()
-options.register('runNumber', 260627, VarParsing.multiplicity.singleton, VarParsing.varType.int, 'Run to analyze')
+options.register('runNumber', 270217, VarParsing.multiplicity.singleton, VarParsing.varType.int, 'Run to analyze')
 options.register('outputFile', 'luts.xml', VarParsing.multiplicity.singleton, VarParsing.varType.string, 'Output XML File')
 options.parseArguments()
 
@@ -22,7 +22,7 @@ process.load('Configuration.StandardSequences.EndOfProcess_cff')
 process.load('Configuration.StandardSequences.FrontierConditions_GlobalTag_cff')
 from Configuration.AlCa.GlobalTag import GlobalTag
 #process.GlobalTag = GlobalTag(process.GlobalTag, 'auto:run2_data', '')
-process.GlobalTag = GlobalTag(process.GlobalTag, '80X_dataRun2_HLT_v6', '')
+process.GlobalTag = GlobalTag(process.GlobalTag, '80X_dataRun2_HLT_v9', '')
 
 process.source = cms.Source('EmptySource',
     firstRun = cms.untracked.uint32(options.runNumber)

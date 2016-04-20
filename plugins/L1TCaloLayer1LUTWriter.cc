@@ -79,6 +79,12 @@ private:
 
   // ----------member data ---------------------------
 
+  bool useLSB;
+  bool useCalib;
+  bool useECALLUT;
+  bool useHCALLUT;
+  bool useHFLUT;
+
   std::vector< std::vector< std::vector < uint32_t > > > ecalLUT;
   std::vector< std::vector< std::vector < uint32_t > > > hcalLUT;
   std::vector< std::vector< uint32_t > > hfLUT;
@@ -88,6 +94,11 @@ private:
 };
 
 L1TCaloLayer1LUTWriter::L1TCaloLayer1LUTWriter(const edm::ParameterSet& iConfig) :
+  useLSB(iConfig.getParameter<bool>("useLSB")),
+  useCalib(iConfig.getParameter<bool>("useCalib")),
+  useECALLUT(iConfig.getParameter<bool>("useECALLUT")),
+  useHCALLUT(iConfig.getParameter<bool>("useHCALLUT")),
+  useHFLUT(iConfig.getParameter<bool>("useHFLUT")),
   ecalLUT(28, std::vector< std::vector<uint32_t> >(2, std::vector<uint32_t>(256))),
   hcalLUT(28, std::vector< std::vector<uint32_t> >(2, std::vector<uint32_t>(256))),
   hfLUT(12, std::vector< uint32_t >(256)),
@@ -193,7 +204,7 @@ L1TCaloLayer1LUTWriter::analyze(const edm::Event& iEvent, const edm::EventSetup&
   l1t::CaloParamsHelper caloParams(*paramsHandle.product());
 
   // Helper function translates CaloParams into actual LUT vectors
-  if(!L1TCaloLayer1FetchLUTs(iSetup, ecalLUT, hcalLUT, hfLUT)) {
+  if(!L1TCaloLayer1FetchLUTs(iSetup, ecalLUT, hcalLUT, hfLUT, useLSB, useCalib, useECALLUT, useHCALLUT, useHFLUT)) {
     edm::LogError("L1TCaloLayer1LUTWriter") << "Failed to fetch LUTs";
     return;
   }
@@ -202,6 +213,7 @@ L1TCaloLayer1LUTWriter::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
   // Root node <algo>
   if ( !rcWrap(xmlTextWriterStartElement(writer_, BAD_CAST "algo")) ) return;
+  if ( !rcWrap(xmlTextWriterWriteAttribute(writer_, BAD_CAST "id", BAD_CAST "calol1")) ) return;
 
 
   // SWATCH magic for all cards
@@ -220,6 +232,11 @@ L1TCaloLayer1LUTWriter::analyze(const edm::Event& iEvent, const edm::EventSetup&
   if ( !writeSWATCHVector("layer1HFScaleETBins", caloParams.layer1HFScaleETBins()) ) return;
   if ( !writeSWATCHVector("layer1HFScaleFactors", caloParams.layer1HFScaleFactors()) ) return;
   if ( !writeXMLParam("towerLsbSum", "float", std::to_string(caloParams.towerLsbSum())) ) return;
+  if ( !writeXMLParam("useLSB", "bool", (useLSB) ? "true":"false") ) return;
+  if ( !writeXMLParam("useCalib", "bool", (useCalib) ? "true":"false") ) return;
+  if ( !writeXMLParam("useECALLUT", "bool", (useECALLUT) ? "true":"false") ) return;
+  if ( !writeXMLParam("useHCALLUT", "bool", (useHCALLUT) ? "true":"false") ) return;
+  if ( !writeXMLParam("useHFLUT", "bool", (useHFLUT) ? "true":"false") ) return;
 
   // We will checksum the LUT contents and put it at the end
   MD5_CTX md5context;
@@ -320,7 +337,12 @@ L1TCaloLayer1LUTWriter::analyze(const edm::Event& iEvent, const edm::EventSetup&
       uint32_t fullInput = (fb << 8) | hfInput;
       row.push_back(fullInput);
       for(int hfEta=0; hfEta<12; ++hfEta) {
-        row.push_back(hfLUT[hfEta][hfInput]);
+        uint32_t output = hfLUT[hfEta][hfInput];
+        // HF LUT in emulator does not currently handle
+        // feature bits, instead emulator passes them
+        // unaltered. So this is what we have hardware do
+        output |= (fb << 8);
+        row.push_back(output);
       }
       MD5_Update(&md5context, &row[1], (row.size()-1)*sizeof(uint32_t));
       if ( !writeSWATCHTableRow(row) ) return;
