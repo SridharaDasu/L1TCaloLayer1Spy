@@ -42,6 +42,7 @@
 #include "L1Trigger/L1TCalorimeter/interface/CaloParamsHelper.h"
 #include "CondFormats/L1TObjects/interface/CaloParams.h"
 #include "CondFormats/DataRecord/interface/L1TCaloParamsRcd.h"
+#include "CondFormats/DataRecord/interface/L1TCaloStage2ParamsRcd.h"
 
 #include "CondFormats/DataRecord/interface/L1EmEtScaleRcd.h"
 
@@ -63,9 +64,14 @@ private:
 
   bool writeXMLParam(std::string id, std::string type, std::string body);
   bool writeSWATCHVector(std::string id, std::vector<int> vect);
+  bool writeSWATCHVector(std::string id, std::vector<unsigned int> vect);
   bool writeSWATCHVector(std::string id, std::vector<double> vect);
   bool writeSWATCHTableRow(std::vector<uint32_t> vect);
   virtual void analyze(const edm::Event&, const edm::EventSetup&) override;
+
+  bool writeECALLUT(std::string id, uint32_t index, MD5_CTX& md5context);
+  bool writeHCALLUT(std::string id, uint32_t index, MD5_CTX& md5context);
+  bool writeHFLUT(std::string id, uint32_t index, MD5_CTX& md5context);
 
   // Wrapper for xmllib error codes
   // returnCode < 0 if error
@@ -85,9 +91,13 @@ private:
   bool useHCALLUT;
   bool useHFLUT;
 
-  std::vector< std::vector< std::vector < uint32_t > > > ecalLUT;
-  std::vector< std::vector< std::vector < uint32_t > > > hcalLUT;
-  std::vector< std::vector< uint32_t > > hfLUT;
+  std::vector< std::vector< std::vector< std::vector < uint32_t > > > > ecalLUT;
+  std::vector< std::vector< std::vector< std::vector < uint32_t > > > > hcalLUT;
+  std::vector< std::vector< std::vector< uint32_t > > > hfLUT;
+
+  std::vector< unsigned int > ePhiMap;
+  std::vector< unsigned int > hPhiMap;
+  std::vector< unsigned int > hfPhiMap;
 
   bool verbose;
   xmlTextWriterPtr writer_;
@@ -99,9 +109,9 @@ L1TCaloLayer1LUTWriter::L1TCaloLayer1LUTWriter(const edm::ParameterSet& iConfig)
   useECALLUT(iConfig.getParameter<bool>("useECALLUT")),
   useHCALLUT(iConfig.getParameter<bool>("useHCALLUT")),
   useHFLUT(iConfig.getParameter<bool>("useHFLUT")),
-  ecalLUT(28, std::vector< std::vector<uint32_t> >(2, std::vector<uint32_t>(256))),
-  hcalLUT(28, std::vector< std::vector<uint32_t> >(2, std::vector<uint32_t>(256))),
-  hfLUT(12, std::vector< uint32_t >(256)),
+  ePhiMap(72*2),
+  hPhiMap(72*2),
+  hfPhiMap(72*2),
   verbose(iConfig.getUntrackedParameter<bool>("verbose"))
 {
   std::string fileName = iConfig.getParameter<std::string>("fileName");
@@ -175,6 +185,19 @@ L1TCaloLayer1LUTWriter::writeSWATCHVector(std::string id, std::vector<int> vect)
 }
 
 bool
+L1TCaloLayer1LUTWriter::writeSWATCHVector(std::string id, std::vector<unsigned int> vect)
+{
+  std::stringstream output;
+  for(auto it=vect.begin(); it!=vect.end(); ++it) {
+    output << *it;
+    if ( it != vect.end()-1 ) {
+      output << ", ";
+    }
+  }
+  return writeXMLParam(id, "vector:uint", output.str());
+}
+
+bool
 L1TCaloLayer1LUTWriter::writeSWATCHVector(std::string id, std::vector<double> vect)
 {
   std::stringstream output;
@@ -196,7 +219,7 @@ L1TCaloLayer1LUTWriter::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
   // CaloParams contains all persisted parameters for Layer 1
   edm::ESHandle<l1t::CaloParams> paramsHandle;
-  iSetup.get<L1TCaloParamsRcd>().get(paramsHandle);
+  iSetup.get<L1TCaloStage2ParamsRcd>().get(paramsHandle);
   if ( paramsHandle.product() == nullptr ) {
     edm::LogError("L1TCaloLayer1LUTWriter") << "Missing CaloParams object! Check Global Tag, etc.";
     return;
@@ -204,7 +227,7 @@ L1TCaloLayer1LUTWriter::analyze(const edm::Event& iEvent, const edm::EventSetup&
   l1t::CaloParamsHelper caloParams(*paramsHandle.product());
 
   // Helper function translates CaloParams into actual LUT vectors
-  if(!L1TCaloLayer1FetchLUTs(iSetup, ecalLUT, hcalLUT, hfLUT, useLSB, useCalib, useECALLUT, useHCALLUT, useHFLUT)) {
+  if(!L1TCaloLayer1FetchLUTs(iSetup, ecalLUT, hcalLUT, hfLUT, ePhiMap, hPhiMap, hfPhiMap, useLSB, useCalib, useECALLUT, useHCALLUT, useHFLUT)) {
     edm::LogError("L1TCaloLayer1LUTWriter") << "Failed to fetch LUTs";
     return;
   }
@@ -215,9 +238,8 @@ L1TCaloLayer1LUTWriter::analyze(const edm::Event& iEvent, const edm::EventSetup&
   if ( !rcWrap(xmlTextWriterStartElement(writer_, BAD_CAST "algo")) ) return;
   if ( !rcWrap(xmlTextWriterWriteAttribute(writer_, BAD_CAST "id", BAD_CAST "calol1")) ) return;
 
-
   // SWATCH magic for all cards
-  // If we ever have different LUTs for different phi, this would need to change
+  // different LUTs are added via contexts at the end
   if ( !rcWrap(xmlTextWriterStartElement(writer_, BAD_CAST "context")) ) return;
   if ( !rcWrap(xmlTextWriterWriteAttribute(writer_, BAD_CAST "id", BAD_CAST "processors")) ) return;
 
@@ -226,10 +248,13 @@ L1TCaloLayer1LUTWriter::analyze(const edm::Event& iEvent, const edm::EventSetup&
   // but necessary for O2O, given the offline format
   // (i.e. what we are reading right now)
   if ( !writeSWATCHVector("layer1ECalScaleETBins", caloParams.layer1ECalScaleETBins()) ) return;
+  if ( !writeSWATCHVector("layer1ECalScalePhiBins", caloParams.layer1ECalScalePhiBins()) ) return;
   if ( !writeSWATCHVector("layer1ECalScaleFactors", caloParams.layer1ECalScaleFactors()) ) return;
   if ( !writeSWATCHVector("layer1HCalScaleETBins", caloParams.layer1HCalScaleETBins()) ) return;
+  if ( !writeSWATCHVector("layer1HCalScalePhiBins", caloParams.layer1HCalScalePhiBins()) ) return;
   if ( !writeSWATCHVector("layer1HCalScaleFactors", caloParams.layer1HCalScaleFactors()) ) return;
   if ( !writeSWATCHVector("layer1HFScaleETBins", caloParams.layer1HFScaleETBins()) ) return;
+  if ( !writeSWATCHVector("layer1HFScalePhiBins", caloParams.layer1HFScalePhiBins()) ) return;
   if ( !writeSWATCHVector("layer1HFScaleFactors", caloParams.layer1HFScaleFactors()) ) return;
   if ( !writeXMLParam("towerLsbSum", "float", std::to_string(caloParams.towerLsbSum())) ) return;
   if ( !writeXMLParam("useLSB", "bool", (useLSB) ? "true":"false") ) return;
@@ -242,118 +267,17 @@ L1TCaloLayer1LUTWriter::analyze(const edm::Event& iEvent, const edm::EventSetup&
   MD5_CTX md5context;
   MD5_Init(&md5context);
 
-  // Loop and write the ECAL LUT
-  // <param id="ECALLUT" type="table">
-  if ( !rcWrap(xmlTextWriterStartElement(writer_, BAD_CAST "param")) ) return;
-  if ( !rcWrap(xmlTextWriterWriteAttribute(writer_, BAD_CAST "id", BAD_CAST "ECALLUT")) ) return;
-  if ( !rcWrap(xmlTextWriterWriteAttribute(writer_, BAD_CAST "type", BAD_CAST "table")) ) return;
+  // Loop and write the ECAL LUT -> Minus and Plus
+  if ( !writeECALLUT("ECALLUTMinus",0,md5context) ) return;
+  if ( !writeECALLUT("ECALLUTPlus",0,md5context) ) return;
 
-  // <columns>
-  const char * ecal_columns{"Input, 01, 02, 03, 04, 05, 06, 07, 08, 09, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28"};
-  if ( !rcWrap(xmlTextWriterWriteElement(writer_, BAD_CAST "columns", BAD_CAST ecal_columns)) ) return;
+  // Loop and write the HCAL LUT -> Minus and Plus
+  if ( !writeHCALLUT("HCALLUTMinus",0,md5context) ) return;
+  if ( !writeHCALLUT("HCALLUTPlus",0,md5context) ) return;
 
-  // <types>
-  const char * ecal_types{"uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint"};
-  if ( !rcWrap(xmlTextWriterWriteElement(writer_, BAD_CAST "types", BAD_CAST ecal_types)) ) return;
-
-  // <rows>
-  if ( !rcWrap(xmlTextWriterStartElement(writer_, BAD_CAST "rows")) ) return;
-
-  for(uint32_t fb = 0; fb < 2; fb++) {
-    for(uint32_t ecalInput = 0; ecalInput <= 0xFF; ecalInput++) {
-      std::vector<uint32_t> row;
-      uint32_t fullInput = (fb << 8) | ecalInput;
-      row.push_back(fullInput);
-      for(int iEta=1; iEta<=28; ++iEta) {
-        row.push_back(ecalLUT[iEta-1][fb][ecalInput]);
-      }
-      MD5_Update(&md5context, &row[1], (row.size()-1)*sizeof(uint32_t));
-      if ( !writeSWATCHTableRow(row) ) return;
-    }
-  }
-
-  // </rows>
-  if ( !rcWrap(xmlTextWriterEndElement(writer_)) ) return;
-  // </param>
-  if ( !rcWrap(xmlTextWriterEndElement(writer_)) ) return;
-
-
-  // Loop and write the HCAL LUT
-  // <param id="HCALLUT" type="table">
-  if ( !rcWrap(xmlTextWriterStartElement(writer_, BAD_CAST "param")) ) return;
-  if ( !rcWrap(xmlTextWriterWriteAttribute(writer_, BAD_CAST "id", BAD_CAST "HCALLUT")) ) return;
-  if ( !rcWrap(xmlTextWriterWriteAttribute(writer_, BAD_CAST "type", BAD_CAST "table")) ) return;
-
-  // <columns>
-  const char * hcal_columns{"Input, 01, 02, 03, 04, 05, 06, 07, 08, 09, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28"};
-  if ( !rcWrap(xmlTextWriterWriteElement(writer_, BAD_CAST "columns", BAD_CAST hcal_columns)) ) return;
-
-  // <types>
-  const char * hcal_types{"uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint"};
-  if ( !rcWrap(xmlTextWriterWriteElement(writer_, BAD_CAST "types", BAD_CAST hcal_types)) ) return;
-
-  // <rows>
-  if ( !rcWrap(xmlTextWriterStartElement(writer_, BAD_CAST "rows")) ) return;
-
-  for(uint32_t fb = 0; fb < 2; fb++) {
-    for(uint32_t hcalInput = 0; hcalInput <= 0xFF; hcalInput++) {
-      std::vector<uint32_t> row;
-      uint32_t fullInput = (fb << 8) | hcalInput;
-      row.push_back(fullInput);
-      for(int iEta=1; iEta<=28; ++iEta) {
-        row.push_back(hcalLUT[iEta-1][fb][hcalInput]);
-      }
-      MD5_Update(&md5context, &row[1], (row.size()-1)*sizeof(uint32_t));
-      if ( !writeSWATCHTableRow(row) ) return;
-    }
-  }
-
-  // </rows>
-  if ( !rcWrap(xmlTextWriterEndElement(writer_)) ) return;
-  // </param>
-  if ( !rcWrap(xmlTextWriterEndElement(writer_)) ) return;
-
-
-  // Loop and write the HF LUT
-  // <param id="HFLUT" type="table">
-  if ( !rcWrap(xmlTextWriterStartElement(writer_, BAD_CAST "param")) ) return;
-  if ( !rcWrap(xmlTextWriterWriteAttribute(writer_, BAD_CAST "id", BAD_CAST "HFLUT")) ) return;
-  if ( !rcWrap(xmlTextWriterWriteAttribute(writer_, BAD_CAST "type", BAD_CAST "table")) ) return;
-
-  // <columns>
-  const char * hf_columns{"Input, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41"};
-  if ( !rcWrap(xmlTextWriterWriteElement(writer_, BAD_CAST "columns", BAD_CAST hf_columns)) ) return;
-
-  // <types>
-  const char * hf_types{"uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint"};
-  if ( !rcWrap(xmlTextWriterWriteElement(writer_, BAD_CAST "types", BAD_CAST hf_types)) ) return;
-
-  // <rows>
-  if ( !rcWrap(xmlTextWriterStartElement(writer_, BAD_CAST "rows")) ) return;
-
-  for(uint32_t fb = 0; fb < 4; fb++) {
-    for(uint32_t hfInput = 0; hfInput <= 0xFF; hfInput++) {
-      std::vector<uint32_t> row;
-      uint32_t fullInput = (fb << 8) | hfInput;
-      row.push_back(fullInput);
-      for(int hfEta=0; hfEta<12; ++hfEta) {
-        uint32_t output = hfLUT[hfEta][hfInput];
-        // HF LUT in emulator does not currently handle
-        // feature bits, instead emulator passes them
-        // unaltered. So this is what we have hardware do
-        output |= (fb << 8);
-        row.push_back(output);
-      }
-      MD5_Update(&md5context, &row[1], (row.size()-1)*sizeof(uint32_t));
-      if ( !writeSWATCHTableRow(row) ) return;
-    }
-  }
-
-  // </rows>
-  if ( !rcWrap(xmlTextWriterEndElement(writer_)) ) return;
-  // </param>
-  if ( !rcWrap(xmlTextWriterEndElement(writer_)) ) return;
-
+  // Loop and write the HF LUT -> Minus and Plus
+  if ( !writeHFLUT("HFLUTMinus",0,md5context) ) return;
+  if ( !writeHFLUT("HFLUTPlus",0,md5context) ) return;
 
   // Now to write the checksum
   unsigned char checksum[MD5_DIGEST_LENGTH];
@@ -364,9 +288,190 @@ L1TCaloLayer1LUTWriter::analyze(const edm::Event& iEvent, const edm::EventSetup&
   }
   if ( !writeXMLParam("md5checksum", "string", checksumString.str()) ) return;
 
+  // </context>
+  if ( !rcWrap(xmlTextWriterEndElement(writer_)) ) return;
+
+  // Now add phi dependent context for each ctp7
+  // map CTP7 0 1 ... 17 -> processor0 processor1 ... processor17
+  std::vector<unsigned int> ePhiBins  = caloParams.layer1ECalScalePhiBins();
+  std::vector<unsigned int> hPhiBins  = caloParams.layer1HCalScalePhiBins();
+  std::vector<unsigned int> hfPhiBins = caloParams.layer1HFScalePhiBins();
+  for ( uint32_t card=0; card<18; card++ ){
+    // <context>
+    std::stringstream idStream;
+    idStream << "processor";
+    idStream << card;
+    if ( !rcWrap(xmlTextWriterStartElement(writer_, BAD_CAST "context")) ) return;
+    if ( !rcWrap(xmlTextWriterWriteAttribute(writer_, BAD_CAST "id", BAD_CAST idStream.str().c_str())) ) return;
+    
+    // checksum initialization  
+    MD5_CTX md5context;
+    MD5_Init(&md5context);
+
+    // if override ECAL LUT
+    if ( ePhiBins.size()==36 && ePhiBins[card] ) {
+      if ( !writeECALLUT("ECALLUTMinus",ePhiBins[card],md5context) ) return;
+    }
+    if ( ePhiBins.size()==36 && ePhiBins[18+card] ) {
+      if ( !writeECALLUT("ECALLUTPlus",ePhiBins[18+card],md5context) ) return;
+    }
+
+    // if override HCAL LUT
+    if ( hPhiBins.size()==36 && hPhiBins[card] ) {
+      if ( !writeHCALLUT("HCALLUTMinus",hPhiBins[card],md5context) ) return;
+    }
+    if ( hfPhiBins.size()==36 && hPhiBins[18+card] ) {
+      if ( !writeHCALLUT("HCALLUTPlus",hPhiBins[18+card],md5context) ) return;
+    }
+
+    // if override HF LUT
+    if ( hfPhiBins.size()==36 && hfPhiBins[card] ) {
+      if ( !writeHFLUT("HFLUTMinus",hfPhiBins[card],md5context) ) return;
+    }
+    if ( hfPhiBins.size()==36 && hfPhiBins[18+card] ) {
+      if ( !writeHFLUT("HFLUTPlus",hfPhiBins[18+card],md5context) ) return;
+    }
+
+    // write checksum
+    unsigned char checksum[MD5_DIGEST_LENGTH];
+    MD5_Final(checksum, &md5context);
+    std::stringstream checksumString;
+    for(size_t i=0; i<MD5_DIGEST_LENGTH; ++i) {
+      checksumString << std::hex << static_cast<unsigned int>(checksum[i]);
+    }
+    if ( !writeXMLParam("md5checksum", "string", checksumString.str()) ) return;
+
+    // </context>
+    if ( !rcWrap(xmlTextWriterEndElement(writer_)) ) return;
+  }
 
   // Closes all open elements recursively for us
   if ( !rcWrap(xmlTextWriterEndDocument(writer_)) ) return;
+}
+
+bool
+L1TCaloLayer1LUTWriter::writeECALLUT(std::string id, uint32_t index, MD5_CTX& md5context) {
+
+  // <param id="ECALLUT" type="table">
+  if ( !rcWrap(xmlTextWriterStartElement(writer_, BAD_CAST "param")) ) return false;
+  if ( !rcWrap(xmlTextWriterWriteAttribute(writer_, BAD_CAST "id", BAD_CAST id.c_str())) ) return false;
+  if ( !rcWrap(xmlTextWriterWriteAttribute(writer_, BAD_CAST "type", BAD_CAST "table")) ) return false;
+
+  // <columns>
+  const char * ecal_columns{"Input, 01, 02, 03, 04, 05, 06, 07, 08, 09, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28"};
+  if ( !rcWrap(xmlTextWriterWriteElement(writer_, BAD_CAST "columns", BAD_CAST ecal_columns)) ) return false;
+
+  // <types>
+  const char * ecal_types{"uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint"};
+  if ( !rcWrap(xmlTextWriterWriteElement(writer_, BAD_CAST "types", BAD_CAST ecal_types)) ) return false;
+
+  // <rows>
+  if ( !rcWrap(xmlTextWriterStartElement(writer_, BAD_CAST "rows")) ) return false;
+
+  for(uint32_t fb = 0; fb < 2; fb++) {
+    for(uint32_t ecalInput = 0; ecalInput <= 0xFF; ecalInput++) {
+      std::vector<uint32_t> row;
+      uint32_t fullInput = (fb << 8) | ecalInput;
+      row.push_back(fullInput);
+      for(int iEta=1; iEta<=28; ++iEta) {
+        row.push_back(ecalLUT[index][iEta-1][fb][ecalInput]);
+      }
+      MD5_Update(&md5context, &row[1], (row.size()-1)*sizeof(uint32_t));
+      if ( !writeSWATCHTableRow(row) ) return false;
+    }
+  }
+
+  // </rows>
+  if ( !rcWrap(xmlTextWriterEndElement(writer_)) ) return false;
+  // </param>
+  if ( !rcWrap(xmlTextWriterEndElement(writer_)) ) return false;
+
+  return true;
+}
+
+bool
+L1TCaloLayer1LUTWriter::writeHCALLUT(std::string id, uint32_t index, MD5_CTX& md5context) {
+
+  // <param id="HCALLUT" type="table">
+  if ( !rcWrap(xmlTextWriterStartElement(writer_, BAD_CAST "param")) ) return false;
+  if ( !rcWrap(xmlTextWriterWriteAttribute(writer_, BAD_CAST "id", BAD_CAST id.c_str())) ) return false;
+  if ( !rcWrap(xmlTextWriterWriteAttribute(writer_, BAD_CAST "type", BAD_CAST "table")) ) return false;
+
+  // <columns>
+  const char * hcal_columns{"Input, 01, 02, 03, 04, 05, 06, 07, 08, 09, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28"};
+  if ( !rcWrap(xmlTextWriterWriteElement(writer_, BAD_CAST "columns", BAD_CAST hcal_columns)) ) return false;
+
+  // <types>
+  const char * hcal_types{"uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint"};
+  if ( !rcWrap(xmlTextWriterWriteElement(writer_, BAD_CAST "types", BAD_CAST hcal_types)) ) return false;
+
+  // <rows>
+  if ( !rcWrap(xmlTextWriterStartElement(writer_, BAD_CAST "rows")) ) return false;
+
+  for(uint32_t fb = 0; fb < 2; fb++) {
+    for(uint32_t hcalInput = 0; hcalInput <= 0xFF; hcalInput++) {
+      std::vector<uint32_t> row;
+      uint32_t fullInput = (fb << 8) | hcalInput;
+      row.push_back(fullInput);
+      for(int iEta=1; iEta<=28; ++iEta) {
+        row.push_back(hcalLUT[index][iEta-1][fb][hcalInput]);
+      }
+      MD5_Update(&md5context, &row[1], (row.size()-1)*sizeof(uint32_t));
+      if ( !writeSWATCHTableRow(row) ) return false;
+    }
+  }
+
+  // </rows>
+  if ( !rcWrap(xmlTextWriterEndElement(writer_)) ) return false;
+  // </param>
+  if ( !rcWrap(xmlTextWriterEndElement(writer_)) ) return false;
+
+  return true;
+}
+
+bool
+L1TCaloLayer1LUTWriter::writeHFLUT(std::string id, uint32_t index, MD5_CTX& md5context) {
+
+  // <param id="HFLUT" type="table">
+  if ( !rcWrap(xmlTextWriterStartElement(writer_, BAD_CAST "param")) ) return false;
+  if ( !rcWrap(xmlTextWriterWriteAttribute(writer_, BAD_CAST "id", BAD_CAST id.c_str())) ) return false;
+  if ( !rcWrap(xmlTextWriterWriteAttribute(writer_, BAD_CAST "type", BAD_CAST "table")) ) return false;
+
+  // <columns>
+  const char * hf_columns{"Input, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41"};
+  if ( !rcWrap(xmlTextWriterWriteElement(writer_, BAD_CAST "columns", BAD_CAST hf_columns)) ) return false;
+
+  // <types>
+  const char * hf_types{"uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint"};
+  if ( !rcWrap(xmlTextWriterWriteElement(writer_, BAD_CAST "types", BAD_CAST hf_types)) ) return false;
+
+  // <rows>
+  if ( !rcWrap(xmlTextWriterStartElement(writer_, BAD_CAST "rows")) ) return false;
+
+  for(uint32_t fb = 0; fb < 4; fb++) {
+    for(uint32_t hfInput = 0; hfInput <= 0xFF; hfInput++) {
+      std::vector<uint32_t> row;
+      uint32_t fullInput = (fb << 8) | hfInput;
+      row.push_back(fullInput);
+      for(int hfEta=0; hfEta<12; ++hfEta) {
+        uint32_t output = hfLUT[index][hfEta][hfInput];
+        // HF LUT in emulator does not currently handle
+        // feature bits, instead emulator passes them
+        // unaltered. So this is what we have hardware do
+        output |= (fb << 8);
+        row.push_back(output);
+      }
+      MD5_Update(&md5context, &row[1], (row.size()-1)*sizeof(uint32_t));
+      if ( !writeSWATCHTableRow(row) ) return false;
+    }
+  }
+
+  // </rows>
+  if ( !rcWrap(xmlTextWriterEndElement(writer_)) ) return false;
+  // </param>
+  if ( !rcWrap(xmlTextWriterEndElement(writer_)) ) return false;
+
+  return true;
 }
 
 // ------------ method called once each job just before starting event loop  ------------
