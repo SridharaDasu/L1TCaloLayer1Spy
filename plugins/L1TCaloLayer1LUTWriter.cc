@@ -292,14 +292,14 @@ L1TCaloLayer1LUTWriter::analyze(const edm::Event& iEvent, const edm::EventSetup&
   if ( !rcWrap(xmlTextWriterEndElement(writer_)) ) return;
 
   // Now add phi dependent context for each ctp7
-  // map CTP7 0 1 ... 17 -> processor0 processor1 ... processor17
+  // map CTP7 0 1 ... 17 -> CTP7_Phi0 CTP7_Phi1 ... CTP7_Phi17
   std::vector<unsigned int> ePhiBins  = caloParams.layer1ECalScalePhiBins();
   std::vector<unsigned int> hPhiBins  = caloParams.layer1HCalScalePhiBins();
   std::vector<unsigned int> hfPhiBins = caloParams.layer1HFScalePhiBins();
   for ( uint32_t card=0; card<18; card++ ){
     // <context>
     std::stringstream idStream;
-    idStream << "processor";
+    idStream << "CTP7_Phi";
     idStream << card;
     if ( !rcWrap(xmlTextWriterStartElement(writer_, BAD_CAST "context")) ) return;
     if ( !rcWrap(xmlTextWriterWriteAttribute(writer_, BAD_CAST "id", BAD_CAST idStream.str().c_str())) ) return;
