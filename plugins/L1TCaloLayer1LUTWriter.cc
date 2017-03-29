@@ -41,7 +41,6 @@
 
 #include "L1Trigger/L1TCalorimeter/interface/CaloParamsHelper.h"
 #include "CondFormats/L1TObjects/interface/CaloParams.h"
-#include "CondFormats/DataRecord/interface/L1TCaloParamsRcd.h"
 #include "CondFormats/DataRecord/interface/L1TCaloStage2ParamsRcd.h"
 
 #include "CondFormats/DataRecord/interface/L1EmEtScaleRcd.h"
@@ -374,7 +373,25 @@ L1TCaloLayer1LUTWriter::writeECALLUT(std::string id, uint32_t index, MD5_CTX& md
       uint32_t fullInput = (fb << 8) | ecalInput;
       row.push_back(fullInput);
       for(int iEta=1; iEta<=28; ++iEta) {
-        row.push_back(ecalLUT[index][iEta-1][fb][ecalInput]);
+        // 'Old' being 2015-2016 Layer1 firmware
+        // 0:9   Calibrated ET
+        // 10    'calibrated' FG bit
+        // 11    zero flag
+        // 12:14 log2(calibrated ET)
+        uint32_t oldValue = ecalLUT[index][iEta-1][fb][ecalInput];
+        // New value is the 2017+ Layer1 firmware where we have
+        // turned the whole thing into a set of LUTs.  There is some
+        // rearrangement of output bits becouse of this change.
+        // 0:7   Calibrated ET
+        // 8:10  log2(calibrated ET)
+        // 11    zero flag
+        // 12:13 spare bits (undefined currently)
+        uint32_t value{0};
+        value |= 0xff & oldValue;
+        value |= ((oldValue>>12) & 0b111)<<8;
+        value |= (1<<11) & oldValue;
+        value |= (0)<<12;
+        row.push_back(value);
       }
       MD5_Update(&md5context, &row[1], (row.size()-1)*sizeof(uint32_t));
       if ( !writeSWATCHTableRow(row) ) return false;
@@ -414,7 +431,25 @@ L1TCaloLayer1LUTWriter::writeHCALLUT(std::string id, uint32_t index, MD5_CTX& md
       uint32_t fullInput = (fb << 8) | hcalInput;
       row.push_back(fullInput);
       for(int iEta=1; iEta<=28; ++iEta) {
-        row.push_back(hcalLUT[index][iEta-1][fb][hcalInput]);
+        // 'Old' being 2015-2016 Layer1 firmware
+        // 0:9   Calibrated ET
+        // 10    'calibrated' FG bit
+        // 11    zero flag
+        // 12:14 log2(calibrated ET)
+        uint32_t oldValue = hcalLUT[index][iEta-1][fb][hcalInput];
+        // New value is the 2017+ Layer1 firmware where we have
+        // turned the whole thing into a set of LUTs.  There is some
+        // rearrangement of output bits becouse of this change.
+        // 0:7   Calibrated ET
+        // 8:10  log2(calibrated ET)
+        // 11    zero flag
+        // 12:13 spare bits (undefined currently)
+        uint32_t value{0};
+        value |= 0xff & oldValue;
+        value |= ((oldValue>>12) & 0b111)<<8;
+        value |= (1<<11) & oldValue;
+        value |= (0)<<12;
+        row.push_back(value);
       }
       MD5_Update(&md5context, &row[1], (row.size()-1)*sizeof(uint32_t));
       if ( !writeSWATCHTableRow(row) ) return false;
