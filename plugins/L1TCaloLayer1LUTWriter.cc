@@ -89,6 +89,7 @@ private:
   bool useECALLUT;
   bool useHCALLUT;
   bool useHFLUT;
+  int firmwareVersion;
 
   std::vector< std::vector< std::vector< std::vector < uint32_t > > > > ecalLUT;
   std::vector< std::vector< std::vector< std::vector < uint32_t > > > > hcalLUT;
@@ -108,6 +109,7 @@ L1TCaloLayer1LUTWriter::L1TCaloLayer1LUTWriter(const edm::ParameterSet& iConfig)
   useECALLUT(iConfig.getParameter<bool>("useECALLUT")),
   useHCALLUT(iConfig.getParameter<bool>("useHCALLUT")),
   useHFLUT(iConfig.getParameter<bool>("useHFLUT")),
+  firmwareVersion(iConfig.getParameter<int>("firmwareVersion")),
   ePhiMap(72*2),
   hPhiMap(72*2),
   hfPhiMap(72*2),
@@ -391,7 +393,10 @@ L1TCaloLayer1LUTWriter::writeECALLUT(std::string id, uint32_t index, MD5_CTX& md
         value |= ((oldValue>>12) & 0b111)<<8;
         value |= (1<<11) & oldValue;
         value |= (0)<<12;
-        row.push_back(value);
+        if ( firmwareVersion > 1 )
+          row.push_back(value);
+        else
+          row.push_back(oldValue);
       }
       MD5_Update(&md5context, &row[1], (row.size()-1)*sizeof(uint32_t));
       if ( !writeSWATCHTableRow(row) ) return false;
@@ -449,7 +454,10 @@ L1TCaloLayer1LUTWriter::writeHCALLUT(std::string id, uint32_t index, MD5_CTX& md
         value |= ((oldValue>>12) & 0b111)<<8;
         value |= (1<<11) & oldValue;
         value |= (0)<<12;
-        row.push_back(value);
+        if ( firmwareVersion > 1 )
+          row.push_back(value);
+        else
+          row.push_back(oldValue);
       }
       MD5_Update(&md5context, &row[1], (row.size()-1)*sizeof(uint32_t));
       if ( !writeSWATCHTableRow(row) ) return false;
