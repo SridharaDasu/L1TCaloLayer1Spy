@@ -141,9 +141,9 @@ L1TCaloLayer1Spy::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 
   using namespace edm;
 
-  std::auto_ptr<EcalTrigPrimDigiCollection> ecalTPGs(new EcalTrigPrimDigiCollection);
-  std::auto_ptr<HcalTrigPrimDigiCollection> hcalTPGs(new HcalTrigPrimDigiCollection);
-  std::auto_ptr<CaloTowerBxCollection> towersColl (new CaloTowerBxCollection);
+  std::unique_ptr<EcalTrigPrimDigiCollection> ecalTPGs(new EcalTrigPrimDigiCollection);
+  std::unique_ptr<HcalTrigPrimDigiCollection> hcalTPGs(new HcalTrigPrimDigiCollection);
+  std::unique_ptr<CaloTowerBxCollection> towersColl (new CaloTowerBxCollection);
   
   // Determine if we need to take action getting data from layer1, and if so do!
   if((eventNumber % nInputEventsPerCapture) == 0) {
@@ -296,9 +296,9 @@ L1TCaloLayer1Spy::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
     }
   }
 
-  iEvent.put(ecalTPGs);
-  iEvent.put(hcalTPGs);
-  iEvent.put(towersColl);
+  iEvent.put(std::move(ecalTPGs));
+  iEvent.put(std::move(hcalTPGs));
+  iEvent.put(std::move(towersColl));
 
   eventNumber++;
 

@@ -38,14 +38,13 @@ repository.  Currently slightly modified version of it is:
 
 ```bash
 # --- cms-l1t-offline recipe start
-cmsrel CMSSW_8_0_2
-cd CMSSW_8_0_2/src
+cmsrel CMSSW_9_0_0
+cd CMSSW_9_0_0/src
 cmsenv
 git cms-init
-git remote add cms-l1t-offline git@github.com:cms-l1t-offline/cmssw.git
-git fetch cms-l1t-offline
-git cms-merge-topic -u cms-l1t-offline:l1t-integration-v15.0-layer1
-git cms-addpkg L1Trigger/L1TCommon
+#git remote add cms-l1t-offline git@github.com:cms-l1t-offline/cmssw.git
+#git fetch cms-l1t-offline
+git cms-merge-topic -u dntaylor:layer1-phidependent-900
 # --- cms-l1t-offline recipe end
 cd $CMSSW_BASE/..
 svn co svn+ssh://svn.cern.ch/reps/cactus/trunk/cactusprojects/calol1/extern/UCT2016Layer1CTP7Client UCT2016Layer1CTP7Client
