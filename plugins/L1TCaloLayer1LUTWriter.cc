@@ -298,6 +298,17 @@ L1TCaloLayer1LUTWriter::analyze(const edm::Event& iEvent, const edm::EventSetup&
   std::vector<unsigned int> hPhiBins  = caloParams.layer1HCalScalePhiBins();
   std::vector<unsigned int> hfPhiBins = caloParams.layer1HFScalePhiBins();
   for ( uint32_t card=0; card<18; card++ ){
+    // check which processors to write
+    if (!(
+         ( ePhiBins.size()==36 && ePhiBins[card] )
+         || ( ePhiBins.size()==36 && ePhiBins[18+card] )
+         || ( hPhiBins.size()==36 && hPhiBins[card] )
+         || ( hPhiBins.size()==36 && hPhiBins[18+card] )
+         || ( hfPhiBins.size()==36 && hfPhiBins[card] )
+         || ( hfPhiBins.size()==36 && hfPhiBins[18+card] )
+       ))
+      continue;
+
     // <context>
     std::stringstream idStream;
     idStream << "CTP7_Phi";
