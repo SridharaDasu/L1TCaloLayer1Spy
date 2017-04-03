@@ -242,7 +242,7 @@ L1TCaloLayer1LUTWriter::analyze(const edm::Event& iEvent, const edm::EventSetup&
   // SWATCH magic for all cards
   // different LUTs are added via contexts at the end
   if ( !rcWrap(xmlTextWriterStartElement(writer_, BAD_CAST "context")) ) return;
-  if ( !rcWrap(xmlTextWriterWriteAttribute(writer_, BAD_CAST "id", BAD_CAST "Layer1Processor")) ) return;
+  if ( !rcWrap(xmlTextWriterWriteAttribute(writer_, BAD_CAST "id", BAD_CAST "processors")) ) return;
 
   // LUT generation parameters
   // This is not needed for SWATCH
