@@ -395,15 +395,17 @@ L1TCaloLayer1LUTWriter::writeECALLUT(std::string id, uint32_t index, MD5_CTX& md
         // New value is the 2017+ Layer1 firmware where we have
         // turned the whole thing into a set of LUTs.  There is some
         // rearrangement of output bits becouse of this change.
-        // 0:7   Calibrated ET
-        // 8:10  log2(calibrated ET)
-        // 11    zero flag
-        // 12:13 spare bits (undefined currently)
+        // 0:8   9 bit Calibrated ET (for now limit to 8 bit max 0xff)
+        // 9:11  log2(calibrated ET)
+        // 12    zero flag
+        // 13:14 spare bits (undefined currently)
+        // 15    'calibrated' FG bit
         uint32_t value{0};
         value |= 0xff & oldValue;
-        value |= ((oldValue>>12) & 0b111)<<8;
-        value |= (1<<11) & oldValue;
-        value |= (0)<<12;
+        value |= ((oldValue>>12) & 0b111)<<9;
+        value |= ((oldValue>>11) & 0b1)<<12;
+        value |= (0b00)<<13;
+        value |= ((oldValue>>10) & 0b1)<<15;
         if ( firmwareVersion > 1 )
           row.push_back(value);
         else
@@ -456,15 +458,17 @@ L1TCaloLayer1LUTWriter::writeHCALLUT(std::string id, uint32_t index, MD5_CTX& md
         // New value is the 2017+ Layer1 firmware where we have
         // turned the whole thing into a set of LUTs.  There is some
         // rearrangement of output bits becouse of this change.
-        // 0:7   Calibrated ET
-        // 8:10  log2(calibrated ET)
-        // 11    zero flag
-        // 12:13 spare bits (undefined currently)
+        // 0:8   9 bit Calibrated ET (for now limit to 8 bit max 0xff)
+        // 9:11  log2(calibrated ET)
+        // 12    zero flag
+        // 13:14 spare bits (undefined currently)
+        // 15    'calibrated' FG bit
         uint32_t value{0};
         value |= 0xff & oldValue;
-        value |= ((oldValue>>12) & 0b111)<<8;
-        value |= (1<<11) & oldValue;
-        value |= (0)<<12;
+        value |= ((oldValue>>12) & 0b111)<<9;
+        value |= ((oldValue>>11) & 0b1)<<12;
+        value |= (0b00)<<13;
+        value |= ((oldValue>>10) & 0b1)<<15;
         if ( firmwareVersion > 1 )
           row.push_back(value);
         else
