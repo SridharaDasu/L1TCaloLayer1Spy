@@ -41,7 +41,7 @@
 
 #include "L1Trigger/L1TCalorimeter/interface/CaloParamsHelper.h"
 #include "CondFormats/L1TObjects/interface/CaloParams.h"
-#include "CondFormats/DataRecord/interface/L1TCaloStage2ParamsRcd.h"
+#include "CondFormats/DataRecord/interface/L1TCaloParamsRcd.h"
 
 #include "CondFormats/DataRecord/interface/L1EmEtScaleRcd.h"
 
@@ -220,7 +220,7 @@ L1TCaloLayer1LUTWriter::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
   // CaloParams contains all persisted parameters for Layer 1
   edm::ESHandle<l1t::CaloParams> paramsHandle;
-  iSetup.get<L1TCaloStage2ParamsRcd>().get(paramsHandle);
+  iSetup.get<L1TCaloParamsRcd>().get(paramsHandle);
   if ( paramsHandle.product() == nullptr ) {
     edm::LogError("L1TCaloLayer1LUTWriter") << "Missing CaloParams object! Check Global Tag, etc.";
     return;
