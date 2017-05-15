@@ -38,13 +38,14 @@ repository.  Currently slightly modified version of it is:
 
 ```bash
 # --- cms-l1t-offline recipe start
-cmsrel CMSSW_9_0_0
-cd CMSSW_9_0_0/src
+cmsrel CMSSW_9_1_0_pre3
+cd CMSSW_9_1_0_pre3/src
 cmsenv
 git cms-init
-#git remote add cms-l1t-offline git@github.com:cms-l1t-offline/cmssw.git
-#git fetch cms-l1t-offline
-git cms-merge-topic -u dntaylor:layer1-phidependent-900
+git remote add cms-l1t-offline git@github.com:cms-l1t-offline/cmssw.git
+git fetch cms-l1t-offline
+git cms-merge-topic -u cms-l1t-offline:l1t-integration-$CMSSW_VERSION
+git cms-merge-topic -u 18522 # skip if l1t-integration has CaloStage2ParamsRcd -> CaloParamsRcd migration done
 # --- cms-l1t-offline recipe end
 cd $CMSSW_BASE/..
 svn co svn+ssh://svn.cern.ch/reps/cactus/trunk/cactusprojects/calol1/extern/UCT2016Layer1CTP7Client UCT2016Layer1CTP7Client

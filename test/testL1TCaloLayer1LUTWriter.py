@@ -40,7 +40,7 @@ process.GlobalTag = GlobalTag(process.GlobalTag, '90X_dataRun2_HLT_v2', '')
 
 
 # To get L1 CaloParams, until in GT
-#process.load('L1Trigger.L1TCalorimeter.caloStage2Params_2017_v2_1_inconsistent_cfi')
+process.load('L1Trigger.L1TCalorimeter.caloStage2Params_2017_v1_4_cfi')
 #process.load("L1Trigger.L1TCalorimeter.hackConditions_cff")
 
 
