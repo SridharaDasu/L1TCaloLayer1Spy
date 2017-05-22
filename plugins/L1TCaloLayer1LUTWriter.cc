@@ -91,9 +91,9 @@ private:
   bool useHFLUT;
   int firmwareVersion;
 
-  std::vector< std::vector< std::vector< std::vector < uint32_t > > > > ecalLUT;
-  std::vector< std::vector< std::vector< std::vector < uint32_t > > > > hcalLUT;
-  std::vector< std::vector< std::vector< uint32_t > > > hfLUT;
+  std::vector< std::array< std::array< std::array<uint32_t, l1tcalo::nEtBins>, l1tcalo::nCalSideBins >, l1tcalo::nCalEtaBins> > ecalLUT;
+  std::vector< std::array< std::array< std::array<uint32_t, l1tcalo::nEtBins>, l1tcalo::nCalSideBins >, l1tcalo::nCalEtaBins> > hcalLUT;
+  std::vector< std::array< std::array<uint32_t, l1tcalo::nEtBins>, l1tcalo::nHfEtaBins > > hfLUT;
 
   std::vector< unsigned int > ePhiMap;
   std::vector< unsigned int > hPhiMap;
