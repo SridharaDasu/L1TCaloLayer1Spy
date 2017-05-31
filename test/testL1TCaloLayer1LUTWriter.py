@@ -36,11 +36,11 @@ process.schedule = cms.Schedule(process.p)
 process.l1tCaloLayer1LUTWriter.firmwareVersion = 2
 
 # Will affect the HCAL LUTs, and CaloParams if they are ever in GT...
-process.GlobalTag = GlobalTag(process.GlobalTag, '90X_dataRun2_HLT_v2', '')
+process.GlobalTag = GlobalTag(process.GlobalTag, '90X_upgrade2017_realistic_v20', '')
 
 
 # To get L1 CaloParams, until in GT
-process.load('L1Trigger.L1TCalorimeter.caloStage2Params_2017_v1_4_cfi')
+process.load('L1Trigger.L1TCalorimeter.caloStage2Params_2017_v1_8_cfi')
 #process.load("L1Trigger.L1TCalorimeter.hackConditions_cff")
 
 
@@ -66,4 +66,4 @@ process.load('SimCalorimetry.HcalTrigPrimProducers.hcaltpdigi_cff')
 # From an email by Aleko:
 # "For simulation you want LUTGenerationMode=True; (it's about which conditions to use for input LUTs)."
 # Not sure what that means...
-process.HcalTPGCoderULUT.LUTGenerationMode = cms.bool(False)
+process.HcalTPGCoderULUT.LUTGenerationMode = cms.bool(True)
