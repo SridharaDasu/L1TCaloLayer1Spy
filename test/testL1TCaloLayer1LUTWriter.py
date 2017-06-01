@@ -33,14 +33,15 @@ process.schedule = cms.Schedule(process.p)
 #
 
 # See  "L1Trigger/L1TCaloLayer1/src/UCTLayer1.hh" for explanation
-process.l1tCaloLayer1LUTWriter.firmwareVersion = 1
+process.l1tCaloLayer1LUTWriter.firmwareVersion = 2
 
 # Will affect the HCAL LUTs, and CaloParams if they are ever in GT...
 process.GlobalTag = GlobalTag(process.GlobalTag, '90X_upgrade2017_realistic_v20', '')
 
 
 # To get L1 CaloParams, until in GT
-process.load('L1Trigger.L1TCalorimeter.caloStage2Params_2017_v2_1_inconsistent_cfi')
+process.load('L1Trigger.L1TCalorimeter.caloStage2Params_2017_v1_8_cfi')
+#process.load("L1Trigger.L1TCalorimeter.hackConditions_cff")
 
 
 # HCAL Plan1 geometry can be loaded form RecoDB if using a recent enough run number
@@ -65,4 +66,4 @@ process.load('SimCalorimetry.HcalTrigPrimProducers.hcaltpdigi_cff')
 # From an email by Aleko:
 # "For simulation you want LUTGenerationMode=True; (it's about which conditions to use for input LUTs)."
 # Not sure what that means...
-process.HcalTPGCoderULUT.LUTGenerationMode = cms.bool(False)
+process.HcalTPGCoderULUT.LUTGenerationMode = cms.bool(True)
