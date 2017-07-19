@@ -8,6 +8,7 @@ process = cms.Process("L1TCaloLayer1LUTWriter",eras.Run2_2016)
 options = VarParsing()
 options.register('runNumber', 1, VarParsing.multiplicity.singleton, VarParsing.varType.int, 'Run to analyze')
 options.register('outputFile', 'luts.xml', VarParsing.multiplicity.singleton, VarParsing.varType.string, 'Output XML File')
+options.register('saveHcalScaleFile', False, VarParsing.multiplicity.singleton, VarParsing.varType.bool, 'Output HCAL Compression Scale File')
 options.parseArguments()
 
 # import of standard configurations
@@ -25,6 +26,7 @@ process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(1) )
 
 process.load('L1Trigger.L1TCaloLayer1Spy.l1tCaloLayer1LUTWriter_cfi')
 process.l1tCaloLayer1LUTWriter.fileName = options.outputFile
+process.l1tCaloLayer1LUTWriter.saveHcalScaleFile = options.saveHcalScaleFile
 process.p = cms.Path(process.l1tCaloLayer1LUTWriter)
 process.schedule = cms.Schedule(process.p)
 

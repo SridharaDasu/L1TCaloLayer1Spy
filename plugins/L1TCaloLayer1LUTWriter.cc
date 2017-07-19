@@ -21,6 +21,7 @@
 // system include files
 #include <iostream>
 #include <iomanip>
+#include <fstream>
 #include <math.h>
 
 #include <libxml/encoding.h>
@@ -46,6 +47,12 @@
 #include "CondFormats/DataRecord/interface/L1EmEtScaleRcd.h"
 
 #include "L1Trigger/L1TCaloLayer1/src/L1TCaloLayer1FetchLUTs.hh"
+
+#include "CalibFormats/CaloTPG/interface/CaloTPGTranscoder.h"
+#include "CalibFormats/CaloTPG/interface/CaloTPGRecord.h"
+#include "DataFormats/HcalDetId/interface/HcalTrigTowerDetId.h"
+#include "DataFormats/HcalDigi/interface/HcalTriggerPrimitiveSample.h"
+#include "DataFormats/HcalDigi/interface/HcalTriggerPrimitiveDigi.h"
 
 //
 // class declaration
@@ -90,6 +97,7 @@ private:
   bool useHCALLUT;
   bool useHFLUT;
   int firmwareVersion;
+  bool saveHcalScaleFile;
 
   std::vector< std::array< std::array< std::array<uint32_t, l1tcalo::nEtBins>, l1tcalo::nCalSideBins >, l1tcalo::nCalEtaBins> > ecalLUT;
   std::vector< std::array< std::array< std::array<uint32_t, l1tcalo::nEtBins>, l1tcalo::nCalSideBins >, l1tcalo::nCalEtaBins> > hcalLUT;
@@ -110,6 +118,7 @@ L1TCaloLayer1LUTWriter::L1TCaloLayer1LUTWriter(const edm::ParameterSet& iConfig)
   useHCALLUT(iConfig.getParameter<bool>("useHCALLUT")),
   useHFLUT(iConfig.getParameter<bool>("useHFLUT")),
   firmwareVersion(iConfig.getParameter<int>("firmwareVersion")),
+  saveHcalScaleFile(iConfig.getParameter<bool>("saveHcalScaleFile")),
   ePhiMap(72*2),
   hPhiMap(72*2),
   hfPhiMap(72*2),
@@ -226,6 +235,38 @@ L1TCaloLayer1LUTWriter::analyze(const edm::Event& iEvent, const edm::EventSetup&
     return;
   }
   l1t::CaloParamsHelper caloParams(*paramsHandle.product());
+
+
+  if ( saveHcalScaleFile ) {
+    edm::ESHandle<CaloTPGTranscoder> decoder;
+    iSetup.get<CaloTPGRecord>().get(decoder);
+    if ( decoder.product() == nullptr ) {
+      edm::LogError("L1TCaloLayer1LUTWriter") << "Missing CaloTPGTranscoder object! Check Global Tag, etc.";
+      return;
+    }
+    auto decodeHcalEt = [&decoder](int iEta, uint32_t compressedEt, uint32_t iPhi=3) -> double {
+      HcalTriggerPrimitiveSample sample(compressedEt);
+      HcalTrigTowerDetId id(iEta, iPhi);
+      if ( std::abs(iEta) >= 30 ) {
+        id.setVersion(1);
+      }
+      return decoder->hcaletValue(id, sample);
+    };
+    std::ofstream hs("hcalScale.txt");
+    hs << std::fixed << std::setprecision(1);
+    for(int iEta=-41; iEta<=41; ++iEta) {
+      if ( iEta == 0 ) continue;
+      for(uint32_t iPhi=1; iPhi<=72; ++iPhi) {
+        hs << "eta " << std::setw(3) << iEta << " phi " << std::setw(2) << iPhi;
+        for(uint32_t et=0; et<256; ++et) {
+          hs << std::setw(7) << decodeHcalEt(iEta, et, iPhi);
+        }
+        hs << std::endl;
+      }
+    }
+    hs.close();
+  }
+
 
   // Helper function translates CaloParams into actual LUT vectors
   if(!L1TCaloLayer1FetchLUTs(iSetup, ecalLUT, hcalLUT, hfLUT, ePhiMap, hPhiMap, hfPhiMap, useLSB, useCalib, useECALLUT, useHCALLUT, useHFLUT)) {
