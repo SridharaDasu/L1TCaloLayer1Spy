@@ -69,9 +69,9 @@ public:
 private:
 
   bool writeXMLParam(std::string id, std::string type, std::string body);
-  bool writeSWATCHVector(std::string id, std::vector<int> vect);
-  bool writeSWATCHVector(std::string id, std::vector<unsigned int> vect);
-  bool writeSWATCHVector(std::string id, std::vector<double> vect);
+  bool writeSWATCHVector(std::string id, const std::vector<int> vect);
+  bool writeSWATCHVector(std::string id, const std::vector<unsigned int> vect);
+  bool writeSWATCHVector(std::string id, const std::vector<double> vect);
   bool writeSWATCHTableRow(std::vector<uint32_t> vect);
   virtual void analyze(const edm::Event&, const edm::EventSetup&) override;
 
@@ -182,7 +182,7 @@ L1TCaloLayer1LUTWriter::writeSWATCHTableRow(std::vector<uint32_t> vect)
 }
 
 bool
-L1TCaloLayer1LUTWriter::writeSWATCHVector(std::string id, std::vector<int> vect)
+L1TCaloLayer1LUTWriter::writeSWATCHVector(std::string id, const std::vector<int> vect)
 {
   std::stringstream output;
   for(auto it=vect.begin(); it!=vect.end(); ++it) {
@@ -195,7 +195,7 @@ L1TCaloLayer1LUTWriter::writeSWATCHVector(std::string id, std::vector<int> vect)
 }
 
 bool
-L1TCaloLayer1LUTWriter::writeSWATCHVector(std::string id, std::vector<unsigned int> vect)
+L1TCaloLayer1LUTWriter::writeSWATCHVector(std::string id, const std::vector<unsigned int> vect)
 {
   std::stringstream output;
   for(auto it=vect.begin(); it!=vect.end(); ++it) {
@@ -208,7 +208,7 @@ L1TCaloLayer1LUTWriter::writeSWATCHVector(std::string id, std::vector<unsigned i
 }
 
 bool
-L1TCaloLayer1LUTWriter::writeSWATCHVector(std::string id, std::vector<double> vect)
+L1TCaloLayer1LUTWriter::writeSWATCHVector(std::string id, const std::vector<double> vect)
 {
   std::stringstream output;
   for(auto it=vect.begin(); it!=vect.end(); ++it) {
@@ -289,6 +289,7 @@ L1TCaloLayer1LUTWriter::analyze(const edm::Event& iEvent, const edm::EventSetup&
   // This is not needed for SWATCH
   // but necessary for O2O, given the offline format
   // (i.e. what we are reading right now)
+  // NB "layer1SecondStageLUT" written later since it is same format as offline
   if ( !writeSWATCHVector("layer1ECalScaleETBins", caloParams.layer1ECalScaleETBins()) ) return;
   if ( !writeSWATCHVector("layer1ECalScalePhiBins", caloParams.layer1ECalScalePhiBins()) ) return;
   if ( !writeSWATCHVector("layer1ECalScaleFactors", caloParams.layer1ECalScaleFactors()) ) return;
@@ -316,6 +317,14 @@ L1TCaloLayer1LUTWriter::analyze(const edm::Event& iEvent, const edm::EventSetup&
   // Loop and write the HCAL LUT -> Minus and Plus
   if ( !writeHCALLUT("HCALLUTMinus",0,md5context) ) return;
   if ( !writeHCALLUT("HCALLUTPlus",0,md5context) ) return;
+
+  // Firmware version 2 has also second-stage LUT (aka HoverE LUT)
+  if ( firmwareVersion > 1 ) {
+    //const std::vector<uint32_t>& lut = caloParams.layer1HOverELUT();
+    const std::vector<uint32_t>& lut{0x03020100u, 0x07060504u};
+    if ( !writeSWATCHVector("layer1SecondStageLUT", lut) ) return;
+    MD5_Update(&md5context, &lut[0], lut.size()*sizeof(uint32_t));
+  }
 
   // Loop and write the HF LUT -> Minus and Plus
   if ( !writeHFLUT("HFLUTMinus",0,md5context) ) return;
