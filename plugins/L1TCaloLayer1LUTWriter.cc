@@ -321,7 +321,14 @@ L1TCaloLayer1LUTWriter::analyze(const edm::Event& iEvent, const edm::EventSetup&
   // Firmware version 2 has also second-stage LUT (aka HoverE LUT)
   if ( firmwareVersion > 1 ) {
     const std::vector<uint32_t>& lut = caloParams.layer1SecondStageLUT();
-    if ( !writeSWATCHVector("layer1SecondStageLUT", lut) ) return;
+    std::stringstream output;
+    for(auto it=lut.begin(); it!=lut.end(); ++it) {
+      output << std::showbase << std::internal << std::setfill('0') << std::setw(10) << std::hex << *it;
+      if ( it != lut.end()-1 ) {
+        output << ", ";
+      }
+    }
+    if ( !writeXMLParam("layer1SecondStageLUT", "vector:uint", output.str()) ) return;
     MD5_Update(&md5context, &lut[0], lut.size()*sizeof(uint32_t));
   }
 
