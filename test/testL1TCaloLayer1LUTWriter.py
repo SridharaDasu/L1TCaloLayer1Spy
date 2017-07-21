@@ -45,6 +45,8 @@ process.GlobalTag = GlobalTag(process.GlobalTag, '90X_upgrade2017_realistic_v20'
 #process.load('L1Trigger.L1TCalorimeter.caloStage2Params_2017_v1_8_cfi')
 process.load('L1Trigger.L1TCalorimeter.caloStage2Params_2017_v1_8_updateHFSF_cfi')
 #process.load("L1Trigger.L1TCalorimeter.hackConditions_cff")
+from L1Trigger.L1TCaloLayer1Spy.layer1SecondStageLUTs import layer1SecondStageLUT
+process.caloStage2Params.layer1SecondStageLUT = layer1SecondStageLUT 
 
 
 # HCAL Plan1 geometry can be loaded form RecoDB if using a recent enough run number
