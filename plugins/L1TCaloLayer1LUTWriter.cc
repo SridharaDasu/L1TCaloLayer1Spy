@@ -269,7 +269,7 @@ L1TCaloLayer1LUTWriter::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
 
   // Helper function translates CaloParams into actual LUT vectors
-  if(!L1TCaloLayer1FetchLUTs(iSetup, ecalLUT, hcalLUT, hfLUT, ePhiMap, hPhiMap, hfPhiMap, useLSB, useCalib, useECALLUT, useHCALLUT, useHFLUT)) {
+  if(!L1TCaloLayer1FetchLUTs(iSetup, ecalLUT, hcalLUT, hfLUT, ePhiMap, hPhiMap, hfPhiMap, useLSB, useCalib, useECALLUT, useHCALLUT, useHFLUT, firmwareVersion)) {
     edm::LogError("L1TCaloLayer1LUTWriter") << "Failed to fetch LUTs";
     return;
   }
@@ -572,7 +572,12 @@ L1TCaloLayer1LUTWriter::writeHFLUT(std::string id, uint32_t index, MD5_CTX& md5c
         // HF LUT in emulator does not currently handle
         // feature bits, instead emulator passes them
         // unaltered. So this is what we have hardware do
-        output |= (fb << 8);
+        if ( firmwareVersion > 2 ) {
+          output |= (fb << 9);
+        }
+        else {
+          output |= (fb << 8);
+        }
         row.push_back(output);
       }
       MD5_Update(&md5context, &row[1], (row.size()-1)*sizeof(uint32_t));

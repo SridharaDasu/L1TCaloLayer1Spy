@@ -35,7 +35,7 @@ process.schedule = cms.Schedule(process.p)
 #
 
 # See  "L1Trigger/L1TCaloLayer1/src/UCTLayer1.hh" for explanation
-process.l1tCaloLayer1LUTWriter.firmwareVersion = 2
+process.l1tCaloLayer1LUTWriter.firmwareVersion = 3
 
 # Will affect the HCAL LUTs, and CaloParams if they are ever in GT...
 process.GlobalTag = GlobalTag(process.GlobalTag, '90X_upgrade2017_realistic_v20', '')
