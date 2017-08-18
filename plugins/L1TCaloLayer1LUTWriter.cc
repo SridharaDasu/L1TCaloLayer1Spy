@@ -21,6 +21,7 @@
 // system include files
 #include <iostream>
 #include <iomanip>
+#include <fstream>
 #include <math.h>
 
 #include <libxml/encoding.h>
@@ -47,6 +48,12 @@
 
 #include "L1Trigger/L1TCaloLayer1/src/L1TCaloLayer1FetchLUTs.hh"
 
+#include "CalibFormats/CaloTPG/interface/CaloTPGTranscoder.h"
+#include "CalibFormats/CaloTPG/interface/CaloTPGRecord.h"
+#include "DataFormats/HcalDetId/interface/HcalTrigTowerDetId.h"
+#include "DataFormats/HcalDigi/interface/HcalTriggerPrimitiveSample.h"
+#include "DataFormats/HcalDigi/interface/HcalTriggerPrimitiveDigi.h"
+
 //
 // class declaration
 //
@@ -62,9 +69,9 @@ public:
 private:
 
   bool writeXMLParam(std::string id, std::string type, std::string body);
-  bool writeSWATCHVector(std::string id, std::vector<int> vect);
-  bool writeSWATCHVector(std::string id, std::vector<unsigned int> vect);
-  bool writeSWATCHVector(std::string id, std::vector<double> vect);
+  bool writeSWATCHVector(std::string id, const std::vector<int> vect);
+  bool writeSWATCHVector(std::string id, const std::vector<unsigned int> vect);
+  bool writeSWATCHVector(std::string id, const std::vector<double> vect);
   bool writeSWATCHTableRow(std::vector<uint32_t> vect);
   virtual void analyze(const edm::Event&, const edm::EventSetup&) override;
 
@@ -90,6 +97,7 @@ private:
   bool useHCALLUT;
   bool useHFLUT;
   int firmwareVersion;
+  bool saveHcalScaleFile;
 
   std::vector< std::array< std::array< std::array<uint32_t, l1tcalo::nEtBins>, l1tcalo::nCalSideBins >, l1tcalo::nCalEtaBins> > ecalLUT;
   std::vector< std::array< std::array< std::array<uint32_t, l1tcalo::nEtBins>, l1tcalo::nCalSideBins >, l1tcalo::nCalEtaBins> > hcalLUT;
@@ -110,6 +118,7 @@ L1TCaloLayer1LUTWriter::L1TCaloLayer1LUTWriter(const edm::ParameterSet& iConfig)
   useHCALLUT(iConfig.getParameter<bool>("useHCALLUT")),
   useHFLUT(iConfig.getParameter<bool>("useHFLUT")),
   firmwareVersion(iConfig.getParameter<int>("firmwareVersion")),
+  saveHcalScaleFile(iConfig.getParameter<bool>("saveHcalScaleFile")),
   ePhiMap(72*2),
   hPhiMap(72*2),
   hfPhiMap(72*2),
@@ -173,7 +182,7 @@ L1TCaloLayer1LUTWriter::writeSWATCHTableRow(std::vector<uint32_t> vect)
 }
 
 bool
-L1TCaloLayer1LUTWriter::writeSWATCHVector(std::string id, std::vector<int> vect)
+L1TCaloLayer1LUTWriter::writeSWATCHVector(std::string id, const std::vector<int> vect)
 {
   std::stringstream output;
   for(auto it=vect.begin(); it!=vect.end(); ++it) {
@@ -186,7 +195,7 @@ L1TCaloLayer1LUTWriter::writeSWATCHVector(std::string id, std::vector<int> vect)
 }
 
 bool
-L1TCaloLayer1LUTWriter::writeSWATCHVector(std::string id, std::vector<unsigned int> vect)
+L1TCaloLayer1LUTWriter::writeSWATCHVector(std::string id, const std::vector<unsigned int> vect)
 {
   std::stringstream output;
   for(auto it=vect.begin(); it!=vect.end(); ++it) {
@@ -199,7 +208,7 @@ L1TCaloLayer1LUTWriter::writeSWATCHVector(std::string id, std::vector<unsigned i
 }
 
 bool
-L1TCaloLayer1LUTWriter::writeSWATCHVector(std::string id, std::vector<double> vect)
+L1TCaloLayer1LUTWriter::writeSWATCHVector(std::string id, const std::vector<double> vect)
 {
   std::stringstream output;
   for(auto it=vect.begin(); it!=vect.end(); ++it) {
@@ -227,8 +236,40 @@ L1TCaloLayer1LUTWriter::analyze(const edm::Event& iEvent, const edm::EventSetup&
   }
   l1t::CaloParamsHelper caloParams(*paramsHandle.product());
 
+
+  if ( saveHcalScaleFile ) {
+    edm::ESHandle<CaloTPGTranscoder> decoder;
+    iSetup.get<CaloTPGRecord>().get(decoder);
+    if ( decoder.product() == nullptr ) {
+      edm::LogError("L1TCaloLayer1LUTWriter") << "Missing CaloTPGTranscoder object! Check Global Tag, etc.";
+      return;
+    }
+    auto decodeHcalEt = [&decoder](int iEta, uint32_t compressedEt, uint32_t iPhi=3) -> double {
+      HcalTriggerPrimitiveSample sample(compressedEt);
+      HcalTrigTowerDetId id(iEta, iPhi);
+      if ( std::abs(iEta) >= 30 ) {
+        id.setVersion(1);
+      }
+      return decoder->hcaletValue(id, sample);
+    };
+    std::ofstream hs("hcalScale.txt");
+    hs << std::fixed << std::setprecision(1);
+    for(int iEta=-41; iEta<=41; ++iEta) {
+      if ( iEta == 0 ) continue;
+      for(uint32_t iPhi=1; iPhi<=72; ++iPhi) {
+        hs << "eta " << std::setw(3) << iEta << " phi " << std::setw(2) << iPhi;
+        for(uint32_t et=0; et<256; ++et) {
+          hs << std::setw(7) << decodeHcalEt(iEta, et, iPhi);
+        }
+        hs << std::endl;
+      }
+    }
+    hs.close();
+  }
+
+
   // Helper function translates CaloParams into actual LUT vectors
-  if(!L1TCaloLayer1FetchLUTs(iSetup, ecalLUT, hcalLUT, hfLUT, ePhiMap, hPhiMap, hfPhiMap, useLSB, useCalib, useECALLUT, useHCALLUT, useHFLUT)) {
+  if(!L1TCaloLayer1FetchLUTs(iSetup, ecalLUT, hcalLUT, hfLUT, ePhiMap, hPhiMap, hfPhiMap, useLSB, useCalib, useECALLUT, useHCALLUT, useHFLUT, firmwareVersion)) {
     edm::LogError("L1TCaloLayer1LUTWriter") << "Failed to fetch LUTs";
     return;
   }
@@ -248,6 +289,7 @@ L1TCaloLayer1LUTWriter::analyze(const edm::Event& iEvent, const edm::EventSetup&
   // This is not needed for SWATCH
   // but necessary for O2O, given the offline format
   // (i.e. what we are reading right now)
+  // NB "layer1SecondStageLUT" written later since it is same format as offline
   if ( !writeSWATCHVector("layer1ECalScaleETBins", caloParams.layer1ECalScaleETBins()) ) return;
   if ( !writeSWATCHVector("layer1ECalScalePhiBins", caloParams.layer1ECalScalePhiBins()) ) return;
   if ( !writeSWATCHVector("layer1ECalScaleFactors", caloParams.layer1ECalScaleFactors()) ) return;
@@ -275,6 +317,20 @@ L1TCaloLayer1LUTWriter::analyze(const edm::Event& iEvent, const edm::EventSetup&
   // Loop and write the HCAL LUT -> Minus and Plus
   if ( !writeHCALLUT("HCALLUTMinus",0,md5context) ) return;
   if ( !writeHCALLUT("HCALLUTPlus",0,md5context) ) return;
+
+  // Firmware version 2 has also second-stage LUT (aka HoverE LUT)
+  if ( firmwareVersion > 1 ) {
+    const std::vector<uint32_t>& lut = caloParams.layer1SecondStageLUT();
+    std::stringstream output;
+    for(auto it=lut.begin(); it!=lut.end(); ++it) {
+      output << std::showbase << std::internal << std::setfill('0') << std::setw(10) << std::hex << *it;
+      if ( it != lut.end()-1 ) {
+        output << ", ";
+      }
+    }
+    if ( !writeXMLParam("layer1SecondStageLUT", "vector:uint", output.str()) ) return;
+    MD5_Update(&md5context, &lut[0], lut.size()*sizeof(uint32_t));
+  }
 
   // Loop and write the HF LUT -> Minus and Plus
   if ( !writeHFLUT("HFLUTMinus",0,md5context) ) return;
@@ -516,7 +572,12 @@ L1TCaloLayer1LUTWriter::writeHFLUT(std::string id, uint32_t index, MD5_CTX& md5c
         // HF LUT in emulator does not currently handle
         // feature bits, instead emulator passes them
         // unaltered. So this is what we have hardware do
-        output |= (fb << 8);
+        if ( firmwareVersion > 2 ) {
+          output |= (fb << 9);
+        }
+        else {
+          output |= (fb << 8);
+        }
         row.push_back(output);
       }
       MD5_Update(&md5context, &row[1], (row.size()-1)*sizeof(uint32_t));
