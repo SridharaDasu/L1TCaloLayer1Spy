@@ -39,8 +39,6 @@ class CTP7SpyDAQInputSource: public edm::RawInputSource {
     virtual void read(edm::EventPrincipal& eventPrincipal) override;
 
   private:
-    virtual void preForkReleaseResources() override;
-    virtual void postForkReacquireResources(std::shared_ptr<edm::multicore::MessageReceiverForSource>) override;
     edm::Timestamp getTimestamp();
     edm::BranchDescription getBranchDescription(const edm::TypeWithDict& type, std::string productInstanceName = "") const;
 
@@ -199,15 +197,6 @@ bool CTP7SpyDAQInputSource::checkNextEvent()
 
   setEventCached();
   return true;
-}
-
-// I would be lying if I said I knew what these were for...
-void CTP7SpyDAQInputSource::preForkReleaseResources()
-{}
-
-void CTP7SpyDAQInputSource::postForkReacquireResources(std::shared_ptr<edm::multicore::MessageReceiverForSource>)
-{
-  setRunAuxiliary( new edm::RunAuxiliary(runNumber_, edm::Timestamp::beginOfTime(), edm::Timestamp::invalidTimestamp()));
 }
 
 void
