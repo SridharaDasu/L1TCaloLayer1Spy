@@ -204,10 +204,10 @@ L1TCaloLayer1Spy::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
   for(uint32_t cardPhi = 0; cardPhi < 18; cardPhi++) {
     // Loop over both sides
     for(int cardSide = -1; cardSide <= 1; cardSide+=2) {
+      uint32_t offset = (eventNumber % nInputEventsPerCapture) * 4;
       // Loop over all input links
       for(uint32_t link = 0; link < 14; link++) {
 	// Each event eats four words of input buffers
-	uint32_t offset = (eventNumber % nInputEventsPerCapture) * 4;
 	uint32_t *ecalLinkData = 0;
 	uint32_t *hcalLinkData = 0;
 	if(cardSide == 1) {
@@ -262,6 +262,37 @@ L1TCaloLayer1Spy::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 	  }
 	}
       }
+      // HF Data
+      for(uint32_t abPhi=0; abPhi<2; ++abPhi) {
+        uint32_t *hfData;
+        if(cardSide == 1) {
+          hfData = &(positiveEtaInputData[cardPhi][28+abPhi].data())[offset];
+        } else {
+          hfData = &(negativeEtaInputData[cardPhi][28+abPhi].data())[offset];
+        }
+        for(uint32_t hfEta=0; hfEta<12; ++hfEta) {
+          if ( abPhi == 0 && hfEta == 11 ) continue;
+          if ( abPhi == 1 && hfEta == 10 ) continue;
+          size_t word = hfEta/4;
+          size_t shift = 8 * (hfEta%4);
+          if ( hfEta > 10 ) shift = 16;
+          uint32_t et = (hfData[word]>>shift) & 0xff;
+
+          int iEta = cardSide * (hfEta+30);
+          int iPhi = 1 + cardPhi*4 + abPhi*2;
+          if(std::abs(iEta) == 41) iPhi -= 2; // Last two HF are 3, 7, 11, ...
+          iPhi = (iPhi+69)%72 + 1; // iPhi -= 2 mod 72
+          std::cout << iEta << ", " << iPhi << ", " << et << std::endl;
+          HcalTriggerPrimitiveSample sample(et); 
+          HcalTrigTowerDetId id(iEta, iPhi);
+          id.setVersion(1); // To not process these 1x1 HF TPGs with RCT
+          HcalTriggerPrimitiveDigi tpg(id);
+          tpg.setSize(1);
+          tpg.setSample(0, sample);
+          hcalTPGs->push_back(tpg);
+        }
+      }
+
       // Output data
       // Make caloTower collection just for Barrel and Endcap for the moment
       uint32_t nHeader = 1;
